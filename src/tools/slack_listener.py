@@ -1,7 +1,15 @@
 import os
+import sys
 import logging
-from slack_sdk import WebClient
-from slack_sdk.socket_mode import SocketModeHandler
+from pathlib import Path
+
+# 프로젝트 루트 경로를 sys.path에 추가하여 ModuleNotFoundError 방지
+root_dir = str(Path(__file__).parent.parent.parent)
+if root_dir not in sys.path:
+    sys.path.append(root_dir)
+
+from slack_bolt import App
+from slack_bolt.adapter.socket_mode import SocketModeHandler
 from dotenv import load_dotenv
 
 from src.db.session import SessionLocal
@@ -83,18 +91,16 @@ if __name__ == "__main__":
         print("❌ SLACK_APP_TOKEN and SLACK_BOT_TOKEN required.")
         exit(1)
         
-    handler = SocketModeHandler(app_token=app_token)
+    app = App(token=bot_token)
     
-    # Register the action handler
-    @handler.connect
-    def on_connect():
-        print("⚡️ Slack Socket Mode Handler connected!")
-
     # Register for block_actions
-    handler.app.action("approve_reservation_001")(handle_interaction)
-    handler.app.action("cancel_reservation_001")(handle_interaction)
+    @app.action("approve_reservation_001")
+    def handle_approve(ack, body, client):
+        handle_interaction(ack, body, client)
+
+    @app.action("cancel_reservation_001")
+    def handle_cancel(ack, body, client):
+        handle_interaction(ack, body, client)
     
-    # Generic matcher for dynamic IDs if needed:
-    # handler.app.action(re.compile(".*reservation.*"))(handle_interaction)
-    
+    handler = SocketModeHandler(app, app_token)
     handler.start()
