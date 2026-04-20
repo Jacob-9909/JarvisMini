@@ -54,6 +54,10 @@ class MatchPrompt(BaseModel):
     notified_slots: List[str]
     available_slots: List[Dict[str, Any]]
 
+class LlmMatchEvaluation(BaseModel):
+    user_id: int
+    best_match_date: str | None = Field(description="The date of the chosen slot")
+    best_match_zone: str | None = Field(description="The zone of the chosen slot")
     best_match_price: str | None = Field(description="The price of the chosen slot")
     match_score: int = Field(description="100 if perfect match, 50 if good alternative, 0 if nothing fits")
     route: str = "human_input"
