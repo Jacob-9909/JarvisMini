@@ -96,8 +96,18 @@ def _is_within_anniversary_buffer(candidate_date_str: str, d_day_str: str, buffe
         return False
 
 # --- Nodes ---
-def init_node(node_input: WorkflowInput | dict) -> Event:
-    user_id = node_input.user_id if isinstance(node_input, WorkflowInput) else node_input.get("user_id")
+def init_node(ctx, node_input: WorkflowInput | dict | None = None) -> Event:
+    # Primary: ctx.user_id is set by Runner.run_async(user_id=...)
+    # Fallback: node_input for ADK Web UI usage
+    try:
+        user_id = int(ctx.user_id)
+    except (AttributeError, TypeError, ValueError):
+        user_id = 0
+    if node_input is not None:
+        if isinstance(node_input, WorkflowInput):
+            user_id = node_input.user_id
+        elif isinstance(node_input, dict) and "user_id" in node_input:
+            user_id = int(node_input["user_id"])
     logger.info(f"[User {user_id}] --- INIT NODE ---")
     
     db = SessionLocal()
@@ -105,9 +115,9 @@ def init_node(node_input: WorkflowInput | dict) -> Event:
         config = db.query(UserConfig).filter(UserConfig.user_id == user_id).first()
         if not config:
             logger.error(f"[User {user_id}] Config not found.")
-            return Event(route=["end"], payload=InitResult(user_id=user_id, target_site="", target_zone=None, anniversary_date=None, buffer_days=0))
+            return Event(route=["end"], output=InitResult(user_id=user_id, target_site="", target_zone=None, anniversary_date=None, buffer_days=0))
             
-        return Event(payload=InitResult(
+        return Event(output=InitResult(
             user_id=user_id,
             target_site=config.target_booking_url,
             target_zone=config.target_zone,
@@ -117,10 +127,10 @@ def init_node(node_input: WorkflowInput | dict) -> Event:
     finally:
         db.close()
 
-async def auth_node(node_input: InitResult) -> Event:
+async def auth_node(ctx, node_input: InitResult) -> Event:
     logger.info(f"[User {node_input.user_id}] --- AUTH NODE ---")
     if not node_input.target_site:
-        return Event(payload=AuthResult(user_id=node_input.user_id, success=False, error_msg="No target site", target_site=""))
+        return Event(output=AuthResult(user_id=node_input.user_id, success=False, error_msg="No target site", target_site=""))
 
     db = SessionLocal()
     credentials = None
@@ -136,14 +146,14 @@ async def auth_node(node_input: InitResult) -> Event:
     try:
         login_result = await crawler.login(node_input.target_site, credentials)
         if login_result["status"] == "success":
-            return Event(payload=AuthResult(
+            return Event(output=AuthResult(
                 user_id=node_input.user_id,
                 success=True,
                 session_info=login_result.get("cookies", []),
                 target_site=node_input.target_site
             ))
         else:
-            return Event(payload=AuthResult(
+            return Event(output=AuthResult(
                 user_id=node_input.user_id,
                 success=False,
                 error_msg=login_result.get("message", "unknown error"),
@@ -152,7 +162,7 @@ async def auth_node(node_input: InitResult) -> Event:
     finally:
         await crawler.close()
 
-def auth_router(node_input: InitResult | AuthResult) -> Event:
+def auth_router(ctx, node_input: InitResult | AuthResult) -> Event:
     # Handle if init failed
     if isinstance(node_input, InitResult):
         return Event(route=["end"])
@@ -160,7 +170,7 @@ def auth_router(node_input: InitResult | AuthResult) -> Event:
         return Event(route=["end"])
     return Event(route=["scan_node"])
 
-async def scan_node(node_input: AuthResult) -> Event:
+async def scan_node(ctx, node_input: AuthResult) -> Event:
     logger.info(f"[User {node_input.user_id}] --- SCAN NODE ---")
     crawler = CampingCrawler(headless=True)
     await crawler.initialize()
@@ -183,13 +193,13 @@ async def scan_node(node_input: AuthResult) -> Event:
         finally:
             db.close()
             
-        return Event(payload=ScanResult(user_id=node_input.user_id, target_site=node_input.target_site, slots=slots))
+        return Event(output=ScanResult(user_id=node_input.user_id, target_site=node_input.target_site, slots=slots))
     except Exception as e:
-        return Event(payload=ScanResult(user_id=node_input.user_id, target_site=node_input.target_site, error_msg=str(e)))
+        return Event(output=ScanResult(user_id=node_input.user_id, target_site=node_input.target_site, error_msg=str(e)))
     finally:
         await crawler.close()
 
-def match_shortcut_router(node_input: ScanResult) -> Event:
+def match_shortcut_router(ctx, node_input: ScanResult) -> Event:
     """Check if there's an APPROVED slot before going to LLM"""
     logger.info(f"[User {node_input.user_id}] --- MATCH SHORTCUT ROUTER ---")
     
@@ -205,13 +215,13 @@ def match_shortcut_router(node_input: ScanResult) -> Event:
             logger.info(f"[User {node_input.user_id}] Found an externally APPROVED slot: {approved_log.slot_id}")
             parts = approved_log.slot_id.rsplit("-", 1)
             best_match = SlotInfo(date=parts[0], zone=parts[1], available=True, price="", url="")
-            return Event(route=["action_node"], payload=MatchResult(user_id=node_input.user_id, best_match=best_match, match_score=100, route="action_node"))
+            return Event(route=["action_node"], output=MatchResult(user_id=node_input.user_id, best_match=best_match, match_score=100, route="action_node"))
             
         return Event(route=["llm_match_flow"])
     finally:
         db.close()
 
-def prepare_match_prompt(node_input: ScanResult) -> MatchPrompt:
+def prepare_match_prompt(ctx, node_input: ScanResult) -> MatchPrompt:
     logger.info(f"[User {node_input.user_id}] --- PREPARE LLM MATCH PROMPT ---")
     if node_input.error_msg or not node_input.slots:
         return MatchPrompt(user_id=node_input.user_id, target_zone="", anniversary_date=None, buffer_days=0, notified_slots=[], available_slots=[])
@@ -243,7 +253,7 @@ def prepare_match_prompt(node_input: ScanResult) -> MatchPrompt:
         available_slots=available_dicts
     )
 
-def llm_match_router(node_input: LlmMatchEvaluation) -> Event:
+def llm_match_router(ctx, node_input: LlmMatchEvaluation) -> Event:
     logger.info(f"[User {node_input.user_id}] --- LLM MATCH ROUTER (Score: {node_input.match_score}) ---")
     
     if getattr(node_input, "match_score", 0) > 0 and getattr(node_input, "best_match_date", None):
@@ -267,11 +277,11 @@ def llm_match_router(node_input: LlmMatchEvaluation) -> Event:
             db.close()
 
         best_match = SlotInfo(date=node_input.best_match_date, zone=node_input.best_match_zone, available=True, price=node_input.best_match_price or "", url="")
-        return Event(route=["human_input"], payload=MatchResult(user_id=node_input.user_id, best_match=best_match, match_score=node_input.match_score, route="human_input"))
+        return Event(route=["human_input"], output=MatchResult(user_id=node_input.user_id, best_match=best_match, match_score=node_input.match_score, route="human_input"))
     else:
-        return Event(route=["end"], payload=MatchResult(user_id=node_input.user_id, route="end"))
+        return Event(route=["end"], output=MatchResult(user_id=node_input.user_id, route="end"))
 
-async def human_input_node(node_input: MatchResult):
+async def human_input_node(ctx, node_input: MatchResult):
     """HITL node: wait for user approval"""
     logger.info(f"[User {node_input.user_id}] --- HUMAN INPUT NODE ---")
 
@@ -299,7 +309,7 @@ async def human_input_node(node_input: MatchResult):
         payload={"slot_info": bm.model_dump(), "user_id": node_input.user_id}
     )
 
-async def action_node(node_input: Union[UserDecision, dict]) -> Event:
+async def action_node(ctx, node_input: Union[UserDecision, dict]) -> Event:
     user_id = getattr(node_input, 'user_id', node_input.get('user_id', 0)) if isinstance(node_input, dict) else getattr(node_input, 'user_id', 0)
     logger.info(f"[User {user_id}] --- ACTION NODE ---")
     
@@ -375,7 +385,7 @@ async def action_node(node_input: Union[UserDecision, dict]) -> Event:
 
     return Event(message="Workflow complete.")
 
-def end_node(node_input: Any) -> Event:
+def end_node(ctx, node_input: Any) -> Event:
     logger.info(f"--- END NODE ---")
     return Event(message="ended")
 

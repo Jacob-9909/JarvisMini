@@ -22,8 +22,10 @@ async def run_workflow_for_user(user_id: int, max_retries: int, base_backoff: in
         try:
             # ADK Workflow execution manually via .arun
             events = []
-            async for event in root_agent.arun({"user_id": user_id}):
-                events.append(event)
+            from google.adk import Runner
+            from google.adk.sessions import InMemorySessionService
+            runner = Runner(node=root_agent, session_service=InMemorySessionService(), auto_create_session=True)
+            async for event in runner.run_async(user_id=str(user_id), session_id=f"batch_{user_id}", state_delta={"user_id": user_id}):
                 # If it suspends (RequestInput)
                 if getattr(event, 'instruction', None) or 'requestinput' in str(type(event)).lower():
                     logger.info(f"[User {user_id}] Workflow paused for HITL. Exiting batch gracefully.")
