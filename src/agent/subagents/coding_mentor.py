@@ -7,6 +7,7 @@ import os
 from google.adk.agents import Agent
 
 from src.agent.tools import profile_tool
+from src.agent.callbacks import inject_runtime_state, reward_on_tool_use
 
 MODEL = os.getenv("MODEL", "gemini-2.5-flash")
 
@@ -26,5 +27,8 @@ coding_mentor = Agent(
         "- 최종 답은 (1) 핵심 요약 1~2문장 (2) 코드/명령 (3) 추가 학습 포인트 1개 순서."
     ),
     tools=[profile_tool],
+    output_key="response",
+    before_model_callback=inject_runtime_state,
+    after_tool_callback=reward_on_tool_use,
     disallow_transfer_to_peers=True,
 )

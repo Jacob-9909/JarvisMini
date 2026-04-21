@@ -19,6 +19,8 @@ from src.db.session import SessionLocal
 from src.db.models import User, PetProfile
 from src.tools import bus_api, map_api, lunch_roulette, calendar_api
 from src.tools.system_monitor import SystemMonitor
+from src.agent.hitl import GetInput
+from google.adk.events import RequestInput
 
 logger = logging.getLogger(__name__)
 
@@ -247,6 +249,26 @@ def get_user_profile(*, tool_context: ToolContext) -> Dict[str, Any]:
     }
 
 
+async def ask_user(
+    message: str,
+    *,
+    tool_context: ToolContext,
+) -> str:
+    """사용자에게 질문을 던져 추가 정보를 요청합니다.
+    정류소 번호를 모르거나, 구체적인 조건이 필요할 때 등 LLM이 직접 물어봐야 할 때 사용
+    Args:
+        message: 사용자에게 보여줄 질문 메시지 (예: "어느 정류소 정보를 알려드릴까요?")
+
+    Returns:
+        사용자가 입력한 텍스트 응답.
+    """
+    ctx = tool_context.get_invocation_context()
+    request = RequestInput(message=message)
+    # GetInput 노드를 동적으로 실행하여 사용자의 응답을 기다림
+    response = await ctx.run_node(GetInput(request, name="hitl_ask_user"))
+    return str(response)
+
+
 # ---------- FunctionTool 래핑 ----------------------------------------------
 bus_arrival_tool = FunctionTool(get_bus_arrival)
 bus_search_tool = FunctionTool(search_bus_stations)
@@ -256,6 +278,7 @@ calendar_tool = FunctionTool(get_calendar_events)
 pet_status_tool = FunctionTool(get_pet_status)
 activity_tool = FunctionTool(get_activity_snapshot)
 profile_tool = FunctionTool(get_user_profile)
+ask_user_tool = FunctionTool(ask_user)
 
 
 __all__ = [
@@ -267,4 +290,5 @@ __all__ = [
     "pet_status_tool",
     "activity_tool",
     "profile_tool",
+    "ask_user_tool",
 ]

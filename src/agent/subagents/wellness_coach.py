@@ -7,6 +7,7 @@ import os
 from google.adk.agents import Agent
 
 from src.agent.tools import activity_tool, pet_status_tool
+from src.agent.callbacks import inject_runtime_state, reward_on_tool_use
 
 MODEL = os.getenv("MODEL", "gemini-2.5-flash")
 
@@ -29,5 +30,8 @@ wellness_coach = Agent(
         "4) 펫 관점에서 공감 어투로 1~2문장, 끝에 ⭐ 스티커 하나로 마무리."
     ),
     tools=[activity_tool, pet_status_tool],
+    output_key="response",
+    before_model_callback=inject_runtime_state,
+    after_tool_callback=reward_on_tool_use,
     disallow_transfer_to_peers=True,
 )

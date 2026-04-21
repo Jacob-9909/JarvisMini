@@ -10,38 +10,18 @@ from pydantic import BaseModel, Field
 from src.db.models import User
 from src.db.session import SessionLocal
 from src.schema.state import PetStatus, UserContext
+from src.schema.chat import ChatWorkflowInput, ChatInit, ChatBundle
 from src.tools import bus_api, calendar_api, lunch_roulette, map_api
 from src.tools.monitor_pipeline import apply_pet_care_deltas
 from src.tools.system_monitor import SystemMonitor
 from src.workflow.helpers import ensure_pet_profile, log_node, session_id
 
 
-class ChatInput(BaseModel):
-    user_id: int
-    message: str
 
 
-CURRENT_CHAT_INPUT: "ContextVar[Optional[ChatInput]]" = ContextVar(
+CURRENT_CHAT_INPUT: "ContextVar[Optional[ChatWorkflowInput]]" = ContextVar(
     "CURRENT_CHAT_INPUT", default=None
 )
-
-
-class ChatInit(BaseModel):
-    user: UserContext
-    pet: PetStatus
-    message: str
-    intent: str
-
-
-class ChatBundle(BaseModel):
-    user: UserContext
-    pet: PetStatus
-    message: str
-    intent: str
-    response_text: str = ""
-    pending_exp: int = 0
-    pending_stress: int = 0
-    source: str = "chat"
 
 
 def _intent_of(text: str) -> str:
@@ -69,7 +49,7 @@ def init_node(ctx, node_input: Dict[str, Any] | None = None) -> Event:
     except Exception:
         pass
     src = node_input or state_input or CURRENT_CHAT_INPUT.get()
-    if isinstance(src, ChatInput):
+    if isinstance(src, ChatWorkflowInput):
         user_id = src.user_id
         message = src.message
     else:

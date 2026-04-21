@@ -7,6 +7,7 @@ import os
 from google.adk.agents import Agent
 
 from src.agent.tools import cafe_tool, profile_tool
+from src.agent.callbacks import inject_runtime_state, reward_on_tool_use
 
 MODEL = os.getenv("MODEL", "gemini-2.5-flash")
 
@@ -26,5 +27,8 @@ cafe_agent = Agent(
         "- 거리가 가까운 순으로 최대 5곳만 추천하고 '☕ 이름 · 150m · 카테고리' 형식으로 답한다."
     ),
     tools=[cafe_tool, profile_tool],
+    output_key="response",
+    before_model_callback=inject_runtime_state,
+    after_tool_callback=reward_on_tool_use,
     disallow_transfer_to_peers=True,
 )

@@ -7,6 +7,7 @@ import os
 from google.adk.agents import Agent
 
 from src.agent.tools import calendar_tool
+from src.agent.callbacks import inject_runtime_state, reward_on_tool_use
 
 MODEL = os.getenv("MODEL", "gemini-2.5-flash")
 
@@ -25,5 +26,8 @@ calendar_agent = Agent(
         "- 일정이 없으면 '이 범위 안에는 일정이 없어요' 라고 짧게 답한다."
     ),
     tools=[calendar_tool],
+    output_key="response",
+    before_model_callback=inject_runtime_state,
+    after_tool_callback=reward_on_tool_use,
     disallow_transfer_to_peers=True,
 )

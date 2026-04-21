@@ -7,6 +7,7 @@ import os
 from google.adk.agents import Agent
 
 from src.agent.tools import lunch_tool
+from src.agent.callbacks import inject_runtime_state, reward_on_tool_use
 
 MODEL = os.getenv("MODEL", "gemini-2.5-flash")
 
@@ -25,5 +26,8 @@ lunch_agent = Agent(
         "- 결과는 '🍽 오늘은 **떡볶이** 어때요? (룰렛)' 같이 친근하게 한 줄로."
     ),
     tools=[lunch_tool],
+    output_key="response",
+    before_model_callback=inject_runtime_state,
+    after_tool_callback=reward_on_tool_use,
     disallow_transfer_to_peers=True,
 )

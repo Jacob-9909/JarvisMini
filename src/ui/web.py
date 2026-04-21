@@ -41,7 +41,9 @@ from src.tools.system_monitor import SystemMonitor
 from src.workflow.agent import root_agent, WorkflowInput, CURRENT_WORKFLOW_INPUT
 
 # --- Pet Chatbot (ADK 2.0 Graph Workflow + domain agents) ---
-from src.agent.pet_agent import pet_agent, ChatWorkflowInput, CURRENT_CHAT_INPUT
+from src.schema.api import ActionBody, ChatBody, BusConfigBody, UserProfileBody
+from src.agent.pet_agent import pet_agent, CURRENT_CHAT_INPUT
+from src.schema.chat import ChatWorkflowInput
 
 logger = logging.getLogger(__name__)
 
@@ -114,32 +116,6 @@ def _event_to_sse(event: Any) -> Optional[Dict[str, Any]]:
     return None
 
 
-class ActionBody(BaseModel):
-    action: str = "status"
-    payload: Dict[str, Any] = {}
-
-
-class ChatBody(BaseModel):
-    message: str
-    session_id: Optional[str] = None
-
-
-class BusConfigBody(BaseModel):
-    stop_id: Optional[str] = None
-    route_id: Optional[str] = None
-
-
-class UserProfileBody(BaseModel):
-    """첫 실행 온보딩 / 프로필 수정."""
-
-    display_name: str
-    gender: str
-    age: int = Field(ge=1, le=120)
-    job_role: str
-    dev_tendency: str
-    company_lat: float
-    company_lng: float
-    company_address: Optional[str] = None
 
 
 def _profile_complete(user: User) -> bool:
@@ -422,7 +398,7 @@ def _create_app(default_user_id: int) -> FastAPI:
                 async for event in chat_runner.run_async(
                     user_id=str(user_id),
                     session_id=session_id,
-                    state_delta={"input": wf_input.model_dump()},
+                    state_delta={"user_id": user_id, "input": wf_input.model_dump()},
                 ):
                     data = _event_to_sse(event)
                     if data is not None:
