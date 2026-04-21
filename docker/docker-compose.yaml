@@ -3,16 +3,40 @@ version: '3.8'
 services:
   db:
     image: postgres:15-alpine
-    container_name: bookchecker_db
+    container_name: smart_office_db
     restart: always
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-myuser}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mypassword}
-      POSTGRES_DB: ${POSTGRES_DB:-bookchecker_db}
+      POSTGRES_USER: ${POSTGRES_USER:-officeuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-officepass}
+      POSTGRES_DB: ${POSTGRES_DB:-smart_office_db}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./init-schemas.sql:/docker-entrypoint-initdb.d/00-init-schemas.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-officeuser} -d ${POSTGRES_DB:-smart_office_db}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: smart_office_app
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+    depends_on:
+      db:
+        condition: service_healthy
+    # OS 리소스/훅 모니터링은 호스트에서 실행해야 의미가 있으므로
+    # 컨테이너에서는 스케줄러 백그라운드 작업 중심으로 가동.
+    command: ["python", "-m", "src.main", "--mode", "scheduler"]
 
 volumes:
   postgres_data:

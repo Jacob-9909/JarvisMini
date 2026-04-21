@@ -1,20 +1,37 @@
 [project]
-name = "bookchecker"
-version = "0.1.0"
-description = "Add your description here"
+name = "smart-office-life-agent"
+version = "0.2.0"
+description = "나의 업무 리듬과 개발 성향을 이해하고 함께 성장하는 반려 비서 (Google ADK 2.0 Graph Workflow)"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "aiohttp>=3.13.5",
+    "apscheduler>=3.10.4",
+    "fastapi>=0.115.0",
     "google-adk>=2.0.0a2,<3",
+    "httpx>=0.27.2",
+    "jinja2>=3.1.4",
     "nest-asyncio>=1.6.0",
-    "playwright>=1.58.0",
+    "psutil>=6.1.0",
     "psycopg2-binary>=2.9.11",
     "pydantic>=2.13.2",
     "pydantic-settings>=2.13.1",
+    "pynput>=1.7.7",
     "python-dotenv>=1.2.2",
-    "slack-bolt>=1.28.0",
-    "slack-sdk>=3.41.0",
+    "pywebview>=6.2.1",
+    "rich>=13.9.2",
     "sqlalchemy>=2.0.49",
+    "textual>=0.86.0",
+    "uvicorn>=0.32.0",
     "websockets>=15.0.1",
 ]
+
+[project.optional-dependencies]
+google = [
+    "google-api-python-client>=2.150.0",
+    "google-auth-httplib2>=0.2.0",
+    "google-auth-oauthlib>=1.2.1",
+]
+
+[tool.uv]
+package = false

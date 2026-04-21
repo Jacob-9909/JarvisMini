@@ -1,0 +1,2990 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Office Pet</title>
+    <style>
+      :root {
+        --bg: #0f111a;
+        --fg: #e4e7ef;
+        --muted: #7c829a;
+        --accent: #7aa2f7;
+        --warn: #f7768e;
+        --ok: #9ece6a;
+        --panel: #151826;
+        --border: #23263a;
+      }
+
+      * { box-sizing: border-box; }
+
+      html, body {
+        margin: 0;
+        padding: 0;
+        background: transparent;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+          "Noto Sans KR", sans-serif;
+        color: var(--fg);
+      }
+
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+      }
+
+      #widget {
+        width: 400px;
+        height: 560px;
+        background: var(--bg);
+        border-radius: 14px;
+        border: 1px solid var(--border);
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        position: relative;
+      }
+
+      .titlebar {
+        height: 28px;
+        background: #0b0d15;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        padding: 0 10px;
+        font-size: 11px;
+        color: var(--muted);
+        -webkit-app-region: drag;
+        user-select: none;
+      }
+      .titlebar .dot {
+        width: 8px; height: 8px; border-radius: 50%;
+        background: #3b3f55; margin-right: 6px;
+      }
+      .titlebar .dot.r { background: #ef4444; }
+      .titlebar .dot.y { background: #f59e0b; }
+      .titlebar .dot.g { background: #22c55e; }
+      .titlebar .title { margin-left: 8px; flex: 1; }
+
+      /* 왼쪽 상태 보드 + 오른쪽 펫 */
+      .hero {
+        display: flex;
+        flex-direction: row;
+        align-items: stretch;
+        gap: 8px;
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--border);
+        min-height: 148px;
+        flex-shrink: 0;
+      }
+
+      .status-board {
+        flex: 0 0 46%;
+        max-width: 46%;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        font-size: 10.5px;
+        line-height: 1.25;
+        padding: 4px 2px 4px 0;
+      }
+      .status-board h3 {
+        margin: 0 0 4px 0;
+        font-size: 10px;
+        font-weight: 600;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .status-board .kv { display: flex; justify-content: space-between; gap: 4px; }
+      .status-board .kv span:first-child { color: var(--muted); flex-shrink: 0; }
+      .status-board b { color: var(--accent); font-weight: 600; text-align: right; }
+
+      .bar {
+        height: 4px; background: #1e2236; border-radius: 3px;
+        overflow: hidden; margin-top: 2px;
+      }
+      .bar > i {
+        display: block; height: 100%;
+        background: linear-gradient(90deg, #7aa2f7, #bb9af7);
+      }
+      .bar.stress > i { background: linear-gradient(90deg, #9ece6a, #e0af68, #f7768e); }
+
+      .pet-column {
+        flex: 1;
+        min-width: 0;
+        background: var(--panel);
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        padding: 8px 6px 10px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+      .pet-frame {
+        font-family: "JetBrains Mono", "Menlo", monospace;
+        font-size: 10px;
+        line-height: 1.08;
+        white-space: pre;
+        color: #a9b1d6;
+        text-align: center;
+      }
+      .pet-say {
+        color: #e0af68;
+        font-family: -apple-system, sans-serif;
+        font-size: 10px;
+        margin-top: 6px;
+        line-height: 1.3;
+        text-align: center;
+        max-width: 100%;
+      }
+
+      .actions {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 4px;
+        padding: 6px 10px 8px;
+        border-bottom: 1px solid var(--border);
+      }
+      .actions button {
+        background: #1a1d2d;
+        color: var(--fg);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 5px 0;
+        font-size: 10px;
+        cursor: pointer;
+        transition: background 0.12s, border-color 0.12s;
+      }
+      .actions button:hover { background: #242840; color: #fff; }
+      .actions button:disabled { opacity: 0.5; cursor: wait; }
+      .actions button.active {
+        border-color: var(--accent);
+        background: #1e2540;
+        color: #c8d3f5;
+      }
+      .actions .k { display: block; color: var(--muted); font-size: 8px; margin-top: 1px; }
+
+      .result {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        padding: 8px 10px;
+        overflow: hidden;
+      }
+      .result-header {
+        font-size: 10px;
+        color: var(--muted);
+        margin-bottom: 6px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .result-header strong { color: var(--accent); font-size: 11.5px; }
+      .result-body {
+        flex: 1;
+        overflow-y: auto;
+        font-size: 11.5px;
+        line-height: 1.45;
+      }
+      .result-body ul { list-style: none; padding: 0; margin: 0; }
+      .result-body li {
+        padding: 4px 0;
+        border-bottom: 1px dashed #1b1e2e;
+        color: #c0c5d6;
+      }
+      .result-body li:last-child { border-bottom: none; }
+      .result-body .placeholder { color: var(--muted); font-size: 11px; }
+
+      /* Pane: 공통 hero / list / pill (버스·카페·점심·일정) */
+      .pane-hero {
+        background: #181c2d;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 9px 11px;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .pane-hero .label {
+        font-size: 9px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      .pane-hero .big {
+        font-size: 26px;
+        font-weight: 700;
+        color: #c8d3f5;
+        line-height: 1;
+        font-variant-numeric: tabular-nums;
+      }
+      .pane-hero .big .unit {
+        font-size: 10px;
+        margin-left: 2px;
+        color: var(--muted);
+      }
+      .pane-hero .title { flex: 1; min-width: 0; font-size: 12px; color: #c8d3f5; }
+      .pane-hero .sub { font-size: 10px; color: var(--muted); margin-top: 3px; }
+
+      .pane-meta {
+        font-size: 10px;
+        color: var(--muted);
+        margin-bottom: 4px;
+      }
+      .pane-sub-title {
+        font-size: 9px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin: 8px 0 4px;
+      }
+
+      /* ===== Cafe map ===== */
+      .cafe-map {
+        position: relative;
+        width: 100%;
+        height: 200px;
+        border-radius: 8px;
+        overflow: hidden;
+        margin-bottom: 8px;
+        background: #0b0d16;
+        border: 1px solid #1b2030;
+      }
+      .cafe-map > div { width: 100%; height: 100%; }
+      .cafe-map .cafe-map-hint {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 10px;
+        color: var(--muted);
+        font-size: 11px;
+        pointer-events: none;
+      }
+      .cafe-map .cafe-map-badge {
+        position: absolute;
+        top: 6px;
+        right: 6px;
+        background: rgba(11, 13, 22, 0.78);
+        color: #c8d3f5;
+        font-size: 10px;
+        padding: 2px 6px;
+        border-radius: 10px;
+        border: 1px solid #1b2030;
+      }
+      .pane-list li.is-active {
+        background: rgba(95, 124, 255, 0.09);
+      }
+      .pane-list li[data-cafe-idx] { cursor: pointer; }
+
+      /* ===== Pet Chat ===== */
+      .chat-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        height: 100%;
+        min-height: 260px;
+      }
+      .chat-log {
+        flex: 1;
+        overflow-y: auto;
+        padding: 4px 2px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .chat-msg {
+        max-width: 90%;
+        padding: 6px 9px;
+        border-radius: 9px;
+        font-size: 11.5px;
+        line-height: 1.45;
+        word-break: break-word;
+        white-space: pre-wrap;
+      }
+      .chat-msg.user {
+        align-self: flex-end;
+        background: #2e3760;
+        color: #eef1ff;
+        border-bottom-right-radius: 2px;
+      }
+      .chat-msg.pet {
+        align-self: flex-start;
+        background: #171a2a;
+        color: #dfe5ff;
+        border: 1px solid #252a42;
+        border-bottom-left-radius: 2px;
+      }
+      .chat-msg.pet.thinking {
+        color: var(--muted);
+        font-style: italic;
+      }
+      .chat-trace {
+        align-self: flex-start;
+        font-size: 9.5px;
+        color: var(--muted);
+        padding: 1px 6px;
+        border-left: 2px solid #333a5c;
+        margin-left: 2px;
+      }
+      .chat-trace.tool { color: #8fb4ff; }
+      .chat-trace.transfer { color: #e0af68; }
+      .chat-trace.error { color: #ff6b7a; }
+
+      .chat-input {
+        display: flex;
+        gap: 6px;
+      }
+      .chat-input input {
+        flex: 1;
+        min-width: 0;
+        background: #0f1220;
+        border: 1px solid #252a42;
+        color: #eef1ff;
+        border-radius: 8px;
+        padding: 6px 8px;
+        font-size: 12px;
+      }
+      .chat-input input:focus {
+        outline: none;
+        border-color: #5f7cff;
+      }
+      .chat-input button {
+        border: 1px solid #2f3a6b;
+        background: #2b3668;
+        color: #eef1ff;
+        border-radius: 8px;
+        padding: 4px 10px;
+        font-size: 11px;
+        cursor: pointer;
+      }
+      .chat-input button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .chat-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 6px;
+        font-size: 10px;
+        color: var(--muted);
+      }
+      .chat-actions button {
+        background: transparent;
+        border: 1px solid #252a42;
+        border-radius: 6px;
+        color: var(--muted);
+        font-size: 10px;
+        padding: 2px 6px;
+        cursor: pointer;
+      }
+      .chat-actions button:hover { color: #eef1ff; border-color: #3c456c; }
+
+      .pane-list { list-style: none; padding: 0; margin: 0; }
+      .pane-list li {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 5px 0;
+        border-bottom: 1px dashed #1b1e2e;
+        font-size: 11.5px;
+      }
+      .pane-list li:last-child { border-bottom: none; }
+      .pane-list li .time {
+        font-family: "JetBrains Mono", "Menlo", monospace;
+        color: #c8d3f5;
+        font-weight: 600;
+        min-width: 40px;
+        text-align: right;
+        font-size: 11px;
+        font-variant-numeric: tabular-nums;
+      }
+      .pane-list li .main {
+        flex: 1;
+        min-width: 0;
+        color: #c8d3f5;
+        overflow: hidden;
+      }
+      .pane-list li .main .name {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .pane-list li .sub,
+      .pane-list li .main .sub {
+        display: block;
+        font-size: 9.5px;
+        color: var(--muted);
+        margin-top: 1px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .pill {
+        display: inline-block;
+        padding: 1px 7px;
+        font-size: 9.5px;
+        border-radius: 999px;
+        background: #232842;
+        color: #a9b1d6;
+        white-space: nowrap;
+      }
+      .pill.ok { background: #173a25; color: #9ece6a; }
+      .pill.warn { background: #3d2a13; color: #e0af68; }
+      .pill.bad { background: #3a1a25; color: #f7768e; }
+      .pill.soon { background: #1e2540; color: #7aa2f7; }
+
+      /* Bus config 폼 */
+      .config-form {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+      .config-form input {
+        flex: 1 1 auto;
+        min-width: 0;
+        background: #11131e;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: var(--fg);
+        padding: 5px 7px;
+        font-size: 11px;
+        font-family: inherit;
+      }
+      .config-form input:focus {
+        outline: none;
+        border-color: var(--accent);
+      }
+      .config-form input.stop { flex: 2 1 auto; }
+      .config-form input.route { flex: 1 1 70px; }
+      .config-form button {
+        background: var(--accent);
+        color: #0a0c14;
+        border: none;
+        border-radius: 6px;
+        padding: 5px 9px;
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .config-form button:hover { filter: brightness(1.1); }
+      .config-form button:disabled { opacity: 0.5; cursor: wait; }
+      .config-hint {
+        font-size: 9px;
+        color: var(--muted);
+        margin-bottom: 6px;
+        line-height: 1.4;
+      }
+      .config-hint a { color: var(--accent); text-decoration: none; }
+
+      /* Bus editor: 2단계 위저드 */
+      .bus-editor { margin-bottom: 8px; }
+      .bus-editor .step-label {
+        font-size: 9.5px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin: 2px 0 4px;
+      }
+      .bus-editor .selected-stop {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: #1e2540;
+        border: 1px solid var(--accent);
+        border-radius: 8px;
+        padding: 6px 9px;
+        margin-bottom: 6px;
+      }
+      .bus-editor .selected-stop .name { font-weight: 600; color: #c8d3f5; font-size: 11.5px; flex: 1; }
+      .bus-editor .selected-stop .ars { color: var(--muted); font-size: 10px; }
+      .bus-editor .selected-stop button {
+        background: transparent;
+        color: var(--muted);
+        border: none;
+        cursor: pointer;
+        font-size: 12px;
+      }
+      .bus-editor .list {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 8px 0;
+        max-height: 130px;
+        overflow-y: auto;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: #11131e;
+      }
+      .bus-editor .list li {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 9px;
+        border-bottom: 1px solid #1b1e2e;
+        font-size: 11px;
+        cursor: pointer;
+        transition: background 0.1s;
+      }
+      .bus-editor .list li:last-child { border-bottom: none; }
+      .bus-editor .list li:hover { background: #181c2d; }
+      .bus-editor .list li.selected { background: #1e2540; }
+      .bus-editor .list li .main { flex: 1; color: #c8d3f5; min-width: 0; }
+      .bus-editor .list li .main .sub {
+        display: block;
+        color: var(--muted);
+        font-size: 9.5px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .bus-editor .empty {
+        padding: 8px 10px;
+        color: var(--muted);
+        font-size: 10.5px;
+        text-align: center;
+      }
+      .bus-editor .actions-row {
+        display: flex;
+        gap: 6px;
+        justify-content: flex-end;
+      }
+      .bus-editor .actions-row button {
+        padding: 5px 11px;
+        font-size: 11px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: #11131e;
+        color: var(--fg);
+        cursor: pointer;
+      }
+      .bus-editor .actions-row button.primary {
+        background: var(--accent);
+        color: #0a0c14;
+        border-color: transparent;
+        font-weight: 700;
+      }
+      .bus-editor .actions-row button:disabled { opacity: 0.5; cursor: wait; }
+
+      /* ------------------------------------------------------ */
+      /*  Lunch roulette pane (2-column: picker / history)      */
+      /* ------------------------------------------------------ */
+      .lunch-wrap {
+        display: grid;
+        grid-template-columns: 1fr 130px;
+        gap: 8px;
+        height: 100%;
+      }
+      .lunch-main {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        min-width: 0;
+      }
+      .lunch-main .method-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 9.5px;
+        color: var(--accent);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      .lunch-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        padding: 6px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: #11131e;
+        min-height: 38px;
+        max-height: 110px;
+        overflow-y: auto;
+      }
+      .lunch-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        padding: 2px 7px;
+        border-radius: 10px;
+        background: #232842;
+        color: #c8d3f5;
+        font-size: 10.5px;
+        cursor: default;
+      }
+      .lunch-tag button {
+        all: unset;
+        cursor: pointer;
+        color: var(--muted);
+        padding: 0 2px;
+        font-size: 11px;
+      }
+      .lunch-tag button:hover { color: var(--warn); }
+      .lunch-add {
+        display: flex;
+        gap: 4px;
+      }
+      .lunch-add input {
+        flex: 1;
+        min-width: 0;
+        background: #0c0e17;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 5px 8px;
+        color: var(--fg);
+        font-size: 11px;
+      }
+      .lunch-add button {
+        padding: 5px 9px;
+        font-size: 10.5px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: #11131e;
+        color: var(--fg);
+        cursor: pointer;
+      }
+      .lunch-go {
+        width: 100%;
+        padding: 7px 10px;
+        font-size: 12px;
+        font-weight: 700;
+        border: none;
+        border-radius: 8px;
+        background: var(--accent);
+        color: #0a0c14;
+        cursor: pointer;
+      }
+      .lunch-go:disabled { opacity: 0.55; cursor: wait; }
+      .lunch-methods {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 4px;
+      }
+      .lunch-methods button {
+        padding: 5px 4px;
+        font-size: 10px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: #11131e;
+        color: var(--fg);
+        cursor: pointer;
+      }
+      .lunch-methods button:hover:not(:disabled) { background: #1b1e2e; }
+      .lunch-methods button:disabled { opacity: 0.5; cursor: not-allowed; }
+      .lunch-redraw {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 4px;
+        align-items: center;
+        margin-top: 2px;
+      }
+      .lunch-redraw .primary {
+        padding: 6px 10px;
+        font-size: 11px;
+        font-weight: 700;
+        border: none;
+        border-radius: 7px;
+        background: var(--accent);
+        color: #0a0c14;
+        cursor: pointer;
+      }
+      .lunch-redraw .primary:disabled { opacity: 0.5; cursor: wait; }
+      .lunch-redraw .mini-methods {
+        display: flex; gap: 3px;
+      }
+      .lunch-redraw .mini-methods button {
+        width: 26px; height: 26px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: #11131e;
+        color: var(--fg);
+        cursor: pointer;
+        font-size: 12px;
+        padding: 0;
+      }
+      .lunch-redraw .mini-methods button:hover:not(:disabled) { background: #1b1e2e; }
+      .lunch-redraw .mini-methods button:disabled { opacity: 0.5; cursor: not-allowed; }
+      .lunch-reset-btn {
+        all: unset;
+        font-size: 9.5px;
+        color: var(--muted);
+        cursor: pointer;
+        padding: 2px 4px;
+      }
+      .lunch-reset-btn:hover { color: var(--fg); }
+
+      .lunch-stage {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: #0c0e17;
+        padding: 8px;
+        min-height: 150px;
+      }
+
+      /* 제비뽑기 */
+      .lot-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+        gap: 5px;
+        width: 100%;
+      }
+      .lot-card {
+        position: relative;
+        height: 42px;
+        border-radius: 6px;
+        background: #20243a;
+        border: 1px solid var(--border);
+        font-size: 10px;
+        color: #c8d3f5;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transform-style: preserve-3d;
+        transition: transform 0.4s ease, background 0.2s, border-color 0.2s;
+      }
+      .lot-card.revealed {
+        transform: rotateY(180deg);
+        background: #1e2540;
+        color: var(--muted);
+      }
+      .lot-card.revealed::after {
+        content: attr(data-face);
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transform: rotateY(180deg);
+        color: var(--muted);
+        font-size: 10px;
+      }
+      .lot-card.winner {
+        background: var(--accent);
+        color: #0a0c14;
+        border-color: transparent;
+        font-weight: 700;
+        animation: lotPop 0.45s ease;
+      }
+      @keyframes lotPop {
+        0% { transform: scale(0.8); }
+        60% { transform: scale(1.15); }
+        100% { transform: scale(1); }
+      }
+
+      /* 사다리타기 */
+      .ladder-canvas {
+        display: block;
+        width: 100%;
+        height: 180px;
+      }
+
+      /* 룰렛 */
+      .roulette-wrap {
+        position: relative;
+        width: 160px;
+        height: 160px;
+      }
+      .roulette {
+        width: 100%; height: 100%;
+        border-radius: 50%;
+        box-shadow: 0 0 0 2px #23263a;
+        transition: transform var(--dur, 2.6s) cubic-bezier(0.17, 0.8, 0.2, 1);
+      }
+      .roulette-pointer {
+        position: absolute;
+        top: -6px; left: 50%;
+        transform: translateX(-50%);
+        width: 0; height: 0;
+        border-left: 6px solid transparent;
+        border-right: 6px solid transparent;
+        border-top: 10px solid var(--warn);
+        z-index: 2;
+      }
+
+      .lunch-winner {
+        font-size: 15px;
+        font-weight: 700;
+        color: #e3eaff;
+        text-align: center;
+        padding: 6px 4px 2px;
+      }
+      .lunch-winner small {
+        display: block;
+        font-size: 9.5px;
+        color: var(--muted);
+        margin-top: 2px;
+        font-weight: 400;
+      }
+
+      .lunch-history {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 0;
+      }
+      .lunch-history h4 {
+        margin: 0;
+        font-size: 9.5px;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+        text-transform: uppercase;
+      }
+      .lunch-history ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        max-height: 260px;
+        overflow-y: auto;
+        padding-right: 2px;
+      }
+      .lunch-history li {
+        background: #11131e;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 5px 7px;
+        font-size: 10px;
+        color: #c8d3f5;
+        display: flex;
+        flex-direction: column;
+      }
+      .lunch-history li .m { font-weight: 700; color: #e3eaff; font-size: 10.5px; }
+      .lunch-history li .meta {
+        display: flex;
+        justify-content: space-between;
+        color: var(--muted);
+        font-size: 9px;
+        margin-top: 1px;
+      }
+      .lunch-history .empty {
+        color: var(--muted);
+        font-size: 10px;
+        padding: 6px 4px;
+      }
+
+      .toast {
+        position: absolute;
+        bottom: 8px; left: 50%;
+        transform: translateX(-50%);
+        background: #20243a;
+        border: 1px solid var(--border);
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 11px;
+        color: var(--ok);
+        opacity: 0;
+        transition: opacity 0.3s;
+        z-index: 5;
+      }
+      .toast.show { opacity: 1; }
+
+      .scroll::-webkit-scrollbar { width: 5px; }
+      .scroll::-webkit-scrollbar-thumb { background: #2a2e44; border-radius: 3px; }
+
+      /* 첫 실행 프로필 게이트 */
+      .profile-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        background: rgba(8, 10, 18, 0.92);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+      }
+      .profile-overlay.hidden { display: none; }
+      .profile-card {
+        width: 100%;
+        max-width: 360px;
+        max-height: min(92vh, 540px);
+        overflow-y: auto;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 14px 14px 12px;
+        box-shadow: 0 16px 48px rgba(0,0,0,0.45);
+      }
+      .profile-card h2 {
+        margin: 0 0 4px 0;
+        font-size: 15px;
+        color: var(--fg);
+      }
+      .profile-card .lead {
+        margin: 0 0 12px 0;
+        font-size: 11px;
+        color: var(--muted);
+        line-height: 1.45;
+      }
+      .profile-card label {
+        display: block;
+        font-size: 10px;
+        color: var(--muted);
+        margin: 8px 0 3px;
+      }
+      .profile-card input, .profile-card select {
+        width: 100%;
+        background: #0c0e17;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 6px 8px;
+        color: var(--fg);
+        font-size: 12px;
+      }
+      .profile-card .row2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+      .profile-card .actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 14px;
+        justify-content: flex-end;
+      }
+      .profile-card .actions button {
+        padding: 7px 14px;
+        font-size: 12px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: #11131e;
+        color: var(--fg);
+        cursor: pointer;
+      }
+      .profile-card .actions button.primary {
+        background: var(--accent);
+        color: #0a0c14;
+        border: none;
+        font-weight: 700;
+      }
+      .profile-card .actions button:disabled { opacity: 0.5; cursor: wait; }
+      .titlebar button.profile-btn {
+        -webkit-app-region: no-drag;
+        margin-left: 6px;
+        padding: 2px 8px;
+        font-size: 10px;
+        border-radius: 5px;
+        border: 1px solid var(--border);
+        background: #151826;
+        color: var(--muted);
+        cursor: pointer;
+      }
+      .titlebar button.profile-btn:hover { color: var(--fg); }
+    </style>
+  </head>
+  <body>
+    <div id="widget">
+      <div class="titlebar">
+        <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+        <span class="title">Smart Office Pet</span>
+        <button type="button" class="profile-btn" id="btnProfile" title="프로필">프로필</button>
+        <span id="userBadge" style="-webkit-app-region: no-drag;"></span>
+      </div>
+
+      <div class="hero">
+        <aside class="status-board" aria-label="오피스 상태 보드">
+          <h3>Office status</h3>
+          <div class="kv"><span>펫</span><b id="petMeta">-</b></div>
+          <div class="kv"><span>무드</span><b id="petMood">-</b></div>
+          <div>
+            <div class="kv"><span>EXP</span><b id="expLabel">0/100</b></div>
+            <div class="bar"><i id="expBar" style="width:0%"></i></div>
+          </div>
+          <div>
+            <div class="kv"><span>Stress</span><b id="stressLabel">0</b></div>
+            <div class="bar stress"><i id="stressBar" style="width:0%"></i></div>
+          </div>
+          <div class="kv"><span>CPU</span><b id="cpuVal">-</b></div>
+          <div class="kv"><span>RAM</span><b id="memVal">-</b></div>
+          <div class="kv" style="flex-wrap: wrap;">
+            <span style="color: var(--muted);">입력(구간)</span>
+            <span id="inputLine" style="text-align: right; font-size: 9px;">-</span>
+          </div>
+        </aside>
+        <div class="pet-column">
+          <div class="pet-frame" id="petFrame">loading...</div>
+          <div class="pet-say" id="petSay"></div>
+        </div>
+      </div>
+
+      <div class="actions" role="tablist">
+        <button type="button" data-action="status" class="active">상태<span class="k">s</span></button>
+        <button type="button" data-action="bus">버스<span class="k">b</span></button>
+        <button type="button" data-action="cafe">카페<span class="k">c</span></button>
+        <button type="button" data-action="lunch_roulette">점심<span class="k">l</span></button>
+        <button type="button" data-action="calendar">일정<span class="k">g</span></button>
+        <button type="button" data-action="pet_chat">대화<span class="k">p</span></button>
+      </div>
+
+      <div class="result scroll" id="result">
+        <div class="result-header">
+          <span>패널 · <strong id="resultLabel">상태</strong></span>
+          <span id="resultHint" style="font-size:9px;"></span>
+        </div>
+        <div class="result-body" id="resultBody">
+          <p class="placeholder">불러오는 중…</p>
+        </div>
+      </div>
+
+      <div class="toast" id="toast"></div>
+    </div>
+
+    <div id="profileOverlay" class="profile-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="profileTitle">
+      <div class="profile-card">
+        <h2 id="profileTitle">프로필 설정</h2>
+        <p class="lead" id="profileLead">
+          펫 매칭·카페 레이더·버스 등에 쓰입니다. 저장 후 위젯을 사용할 수 있어요.
+        </p>
+        <form id="profileForm" onsubmit="submitProfile(event)">
+          <label for="pfDisplayName">표시 이름</label>
+          <input id="pfDisplayName" name="display_name" required maxlength="64" autocomplete="name" />
+
+          <div class="row2">
+            <div>
+              <label for="pfGender">성별</label>
+              <select id="pfGender" name="gender" required>
+                <option value="">선택</option>
+                <option value="female">여성</option>
+                <option value="male">남성</option>
+                <option value="other">기타</option>
+                <option value="prefer_not">응답 안 함</option>
+              </select>
+            </div>
+            <div>
+              <label for="pfAge">나이</label>
+              <input id="pfAge" name="age" type="number" min="1" max="120" required />
+            </div>
+          </div>
+
+          <label for="pfJob">직군 (펫 매칭)</label>
+          <select id="pfJob" name="job_role" required>
+            <option value="">선택</option>
+            <option value="frontend">프론트엔드</option>
+            <option value="backend">백엔드</option>
+            <option value="data">데이터</option>
+            <option value="ai">AI</option>
+            <option value="ml">ML</option>
+            <option value="infra">인프라</option>
+            <option value="pm">기획/PM</option>
+            <option value="planner">기획</option>
+            <option value="other">기타</option>
+          </select>
+
+          <label for="pfTendency">개발 성향 (펫 매칭)</label>
+          <select id="pfTendency" name="dev_tendency" required>
+            <option value="">선택</option>
+            <option value="active">활발함</option>
+            <option value="calm">차분함</option>
+            <option value="explorer">탐구형</option>
+            <option value="pragmatic">실용형</option>
+            <option value="thoughtful">사려 깊음</option>
+            <option value="researcher">연구형</option>
+            <option value="other">기타</option>
+          </select>
+
+          <label for="pfLat">회사 위도 · 경도 (카페/거리 계산)</label>
+          <div class="row2">
+            <input id="pfLat" name="company_lat" type="number" step="any" required placeholder="예: 37.4979" />
+            <input id="pfLng" name="company_lng" type="number" step="any" required placeholder="예: 127.0276" />
+          </div>
+          <label for="pfAddr">회사 주소 (선택)</label>
+          <input id="pfAddr" name="company_address" maxlength="255" placeholder="도로명/지번, 표시용" />
+
+          <div class="actions">
+            <button type="button" id="profileCancelBtn" onclick="cancelProfileEdit()">취소</button>
+            <button type="submit" class="primary" id="profileSaveBtn">저장하고 시작</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      const USER_ID = {{ user_id }};
+      const GOOGLE_MAPS_API_KEY = {{ google_maps_api_key | tojson }};
+      const GOOGLE_MAPS_MAP_ID = {{ google_maps_map_id | tojson }};
+      const $ = (id) => document.getElementById(id);
+
+      const ACTION_LABEL = {
+        status: "상태",
+        bus: "버스",
+        cafe: "카페",
+        lunch_roulette: "점심",
+        calendar: "일정",
+        pet_chat: "대화",
+        pet_interact: "펫",
+      };
+
+      /** 각 액션별 마지막 응답 캐시:
+       *   status        → { kind: "status", lines: [...] }
+       *   그 외 action → { kind: "rich",  out: <api/action 응답> }
+       */
+      let paneCache = {};
+      let activeAction = "status";
+
+      /** 최근 /api/state 로 받아온 사용자 설정 (버스·프로필 등) */
+      let currentUser = {
+        bus_stop_id: null,
+        bus_route_id: null,
+        profile_complete: false,
+        display_name: null,
+        gender: null,
+        age: null,
+        job_role: null,
+        dev_tendency: null,
+        company_lat: null,
+        company_lng: null,
+        company_address: null,
+      };
+      /** 프로필 패널을 사용자가 연 상태 (수정 중에는 자동으로 닫지 않음) */
+      let profilePanelOpen = false;
+
+      function prefillProfileForm(u) {
+        if (!u) return;
+        const set = (id, val) => {
+          const el = $(id);
+          if (!el) return;
+          el.value = val === null || val === undefined ? "" : val;
+        };
+        set("pfDisplayName", u.display_name);
+        set("pfGender", u.gender);
+        set("pfAge", u.age != null ? String(u.age) : "");
+        set("pfJob", u.job_role);
+        set("pfTendency", u.dev_tendency);
+        set("pfLat", u.company_lat != null ? String(u.company_lat) : "");
+        set("pfLng", u.company_lng != null ? String(u.company_lng) : "");
+        set("pfAddr", u.company_address);
+      }
+
+      function syncProfileGate(u) {
+        if (!u) return;
+        currentUser = {
+          bus_stop_id: u.bus_stop_id ?? currentUser.bus_stop_id,
+          bus_route_id: u.bus_route_id ?? currentUser.bus_route_id,
+          profile_complete: u.profile_complete === true,
+          display_name: u.display_name,
+          gender: u.gender,
+          age: u.age,
+          job_role: u.job_role,
+          dev_tendency: u.dev_tendency,
+          company_lat: u.company_lat,
+          company_lng: u.company_lng,
+          company_address: u.company_address,
+        };
+        prefillProfileForm(u);
+        const ov = $("profileOverlay");
+        const cancelBtn = $("profileCancelBtn");
+        const saveBtn = $("profileSaveBtn");
+        if (u.profile_complete !== true) {
+          profilePanelOpen = true;
+          ov.classList.remove("hidden");
+          ov.dataset.mode = "required";
+          $("profileTitle").textContent = "처음 설정";
+          $("profileLead").textContent =
+            "펫 매칭·카페 레이더에 사용됩니다. 필수 항목을 입력한 뒤 저장해 주세요.";
+          cancelBtn.style.display = "none";
+          saveBtn.textContent = "저장하고 시작";
+        } else {
+          cancelBtn.style.display = "";
+          saveBtn.textContent = "저장";
+          if (!profilePanelOpen) {
+            ov.classList.add("hidden");
+            ov.dataset.mode = "";
+          }
+        }
+      }
+
+      function openProfileEditor() {
+        profilePanelOpen = true;
+        const ov = $("profileOverlay");
+        ov.classList.remove("hidden");
+        ov.dataset.mode = currentUser.profile_complete === true ? "edit" : "required";
+        $("profileTitle").textContent =
+          currentUser.profile_complete === true ? "프로필 수정" : "처음 설정";
+        $("profileLead").textContent =
+          currentUser.profile_complete === true
+            ? "정보를 바꾸면 펫 매칭 기준·주변 카페 위치가 달라질 수 있어요."
+            : "펫 매칭·카페 레이더에 사용됩니다. 필수 항목을 입력한 뒤 저장해 주세요.";
+        $("profileCancelBtn").style.display =
+          currentUser.profile_complete === true ? "" : "none";
+        $("profileSaveBtn").textContent =
+          currentUser.profile_complete === true ? "저장" : "저장하고 시작";
+        prefillProfileForm(currentUser);
+      }
+
+      function cancelProfileEdit() {
+        if (currentUser.profile_complete === false) return;
+        profilePanelOpen = false;
+        $("profileOverlay").classList.add("hidden");
+        $("profileOverlay").dataset.mode = "";
+      }
+
+      async function submitProfile(ev) {
+        ev.preventDefault();
+        const fd = new FormData(ev.target);
+        const lat = parseFloat(String(fd.get("company_lat")));
+        const lng = parseFloat(String(fd.get("company_lng")));
+        if (
+          Number.isNaN(lat) ||
+          Number.isNaN(lng) ||
+          lat < 33 ||
+          lat > 39.5 ||
+          lng < 124 ||
+          lng > 132.5
+        ) {
+          toast("위도·경도를 확인해 주세요 (대한민국 대략 범위)");
+          return;
+        }
+        const body = {
+          display_name: String(fd.get("display_name") || "").trim(),
+          gender: String(fd.get("gender") || ""),
+          age: parseInt(String(fd.get("age")), 10),
+          job_role: String(fd.get("job_role") || ""),
+          dev_tendency: String(fd.get("dev_tendency") || ""),
+          company_lat: lat,
+          company_lng: lng,
+          company_address: String(fd.get("company_address") || "").trim() || null,
+        };
+        const btn = $("profileSaveBtn");
+        if (btn) btn.disabled = true;
+        try {
+          const r = await fetch(`/api/user/profile?user_id=${USER_ID}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          });
+          if (!r.ok) {
+            const err = await r.json().catch(() => ({}));
+            let msg = `HTTP ${r.status}`;
+            const d = err.detail;
+            if (typeof d === "string") msg = d;
+            else if (Array.isArray(d))
+              msg = d.map((x) => x.msg || JSON.stringify(x)).join("; ");
+            else if (d) msg = JSON.stringify(d);
+            throw new Error(msg);
+          }
+          profilePanelOpen = false;
+          $("profileOverlay").classList.add("hidden");
+          $("profileOverlay").dataset.mode = "";
+          toast("저장했어요");
+          await fetchState();
+        } catch (e) {
+          toast("저장 실패: " + e.message);
+        } finally {
+          if (btn) btn.disabled = false;
+        }
+      }
+
+      document.getElementById("btnProfile")?.addEventListener("click", () => {
+        openProfileEditor();
+      });
+      /** 버스 탭 편집 모드 ON/OFF */
+      let busEditing = false;
+
+      /** 점심 추첨 state */
+      const DEFAULT_LUNCH_MENUS = [
+        "김치찌개", "돈까스", "짜장면", "초밥", "마라탕",
+        "쌀국수", "파스타", "샐러드", "햄버거", "비빔밥",
+      ];
+      const lunchState = {
+        menus: [...DEFAULT_LUNCH_MENUS],
+        draft: "",
+        phase: "idle", // idle | drawing | done
+        lastResult: null,
+        history: [],
+        drawing: false,
+      };
+
+      /** 버스 편집기 state */
+      const busEditor = {
+        query: "",           // 정류소 검색어
+        searching: false,    // 검색 중 flag
+        stations: [],        // 검색 결과 [{stop_id, name, lat, lng, ...}]
+        searchHint: "",      // 검색 결과 없음 등 서버 안내
+        selectedStop: null,  // {stop_id, name}
+        loadingRoutes: false,
+        routes: [],          // [{route, type, interval_min, first_time, last_time, ...}]
+        selectedRoutes: new Set(), // 선택된 노선명(문자열)
+      };
+
+      const toast = (msg, ms = 1600) => {
+        const t = $("toast");
+        t.textContent = msg;
+        t.classList.add("show");
+        setTimeout(() => t.classList.remove("show"), ms);
+      };
+
+      function setActiveButton(action) {
+        const prev = activeAction;
+        activeAction = action;
+        document.querySelectorAll(".actions button").forEach((b) => {
+          b.classList.toggle("active", b.dataset.action === action);
+        });
+        if (prev === "cafe" && action !== "cafe") {
+          teardownCafeMap();
+        }
+      }
+
+      function teardownCafeMap() {
+        try {
+          (cafeMapState.markers || []).forEach((m) => m.setMap && m.setMap(null));
+          if (cafeMapState.centerMarker) cafeMapState.centerMarker.setMap(null);
+          if (cafeMapState.circle) cafeMapState.circle.setMap(null);
+          if (cafeMapState.infoWindow) cafeMapState.infoWindow.close();
+        } catch (e) { /* noop */ }
+        cafeMapState.markers = [];
+        cafeMapState.centerMarker = null;
+        cafeMapState.circle = null;
+        cafeMapState.map = null;
+        cafeMapState.infoWindow = null;
+        cafeMapState.selectedIdx = -1;
+      }
+
+      function renderPet(pet) {
+        $("petFrame").textContent = (pet.frame || []).join("\n");
+        $("petSay").textContent = pet.say || "";
+      }
+
+      function renderStatusBoard(s) {
+        const pet = s.pet;
+        const total = pet.level * 100;
+        const cur = pet.exp;
+        $("petMeta").textContent = `${pet.species} Lv.${pet.level}`;
+        $("petMood").textContent = pet.mood;
+        $("expLabel").textContent = `${cur}/${total}`;
+        $("expBar").style.width = `${Math.min(100, (cur / total) * 100)}%`;
+        $("stressLabel").textContent = pet.stress;
+        $("stressBar").style.width = `${Math.min(100, pet.stress)}%`;
+        const live = s.live || {};
+        $("cpuVal").textContent = `${(live.cpu_percent ?? 0).toFixed(0)}%`;
+        $("memVal").textContent = `${(live.mem_percent ?? 0).toFixed(0)}%`;
+        const a = s.activity || {};
+        $("inputLine").textContent =
+          `🖱${a.clicks ?? 0} ⌨${a.keys ?? 0} · 탭${a.tabs ?? 0} · +${a.exp_gain_sample ?? 0}EXP`;
+      }
+
+      function buildStatusPaneLines(s) {
+        const pet = s.pet;
+        const u = s.user;
+        return [
+          `🐾 ${pet.species} Lv.${pet.level} · ${pet.mood} · stress ${pet.stress}`,
+          `✨ EXP ${pet.exp} / 다음까지 ${pet.exp_to_next != null ? pet.exp_to_next : Math.max(0, pet.level * 100 - pet.exp)}`,
+          `👤 ${u.display_name || ""} · ${u.job_role || "-"}`,
+          `💻 실시간 CPU ${(s.live?.cpu_percent ?? 0).toFixed(0)}% · RAM ${(s.live?.mem_percent ?? 0).toFixed(0)}%`,
+        ];
+      }
+
+      function renderPaneFromCache() {
+        const slot = paneCache[activeAction];
+        const body = $("resultBody");
+        $("resultLabel").textContent = ACTION_LABEL[activeAction] || activeAction;
+        $("resultHint").textContent = slot ? "" : "아직 불러오지 않음";
+
+        if (!slot) {
+          body.innerHTML =
+            '<p class="placeholder">아래 탭을 눌러 이 영역에 결과를 불러오세요.<br/>같은 탭을 다시 클릭하면 새로고침됩니다.</p>';
+          return;
+        }
+        if (slot.kind === "status" && slot.lines?.length) {
+          body.innerHTML = `<ul>${slot.lines
+            .map((l) => `<li>${escapeHtml(l)}</li>`)
+            .join("")}</ul>`;
+          return;
+        }
+        if (slot.kind === "rich" && slot.out) {
+          const r = renderers[activeAction];
+          body.innerHTML = r
+            ? r(slot.out)
+            : fallbackLines(slot.out);
+          return;
+        }
+        body.innerHTML = '<p class="placeholder">(내용 없음)</p>';
+      }
+
+      let stateReady = false;
+
+      async function fetchState() {
+        try {
+          const r = await fetch(`/api/state?user_id=${USER_ID}`);
+          if (!r.ok) throw new Error(`state ${r.status}`);
+          const s = await r.json();
+          renderPet(s.pet);
+          renderStatusBoard(s);
+          $("userBadge").textContent = `${s.user.display_name} · ${s.user.job_role || "-"}`;
+
+          syncProfileGate(s.user);
+
+          paneCache["status"] = {
+            kind: "status",
+            title: "오피스 상태 보드",
+            lines: buildStatusPaneLines(s),
+          };
+          if (activeAction === "status") renderPaneFromCache();
+          stateReady = true;
+        } catch (e) {
+          toast("상태 로드 실패");
+        }
+      }
+
+      function renderActionResult(action, out) {
+        paneCache[action] = { kind: "rich", out };
+        setActiveButton(action);
+        renderPaneFromCache();
+      }
+
+      function fallbackLines(out) {
+        const lines = out?.dashboard?.lines?.length
+          ? out.dashboard.lines
+          : ["(내용 없음)"];
+        return `<ul>${lines
+          .map((l) => `<li>${escapeHtml(l)}</li>`)
+          .join("")}</ul>`;
+      }
+
+      /* ---------- 포맷 유틸 ---------- */
+      function formatClock(iso) {
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return String(iso || "-");
+        return `${String(d.getHours()).padStart(2, "0")}:${String(
+          d.getMinutes()
+        ).padStart(2, "0")}`;
+      }
+      function minutesUntil(iso) {
+        const d = new Date(iso).getTime();
+        if (isNaN(d)) return null;
+        return Math.round((d - Date.now()) / 60000);
+      }
+      function fmtMinutesLabel(m) {
+        if (m == null || isNaN(m)) return "-";
+        if (m <= 0) return "지금";
+        return `${m}분`;
+      }
+      function fmtDistance(m) {
+        if (m == null) return "-";
+        if (m >= 1000) return `${(m / 1000).toFixed(1)}km`;
+        return `${m}m`;
+      }
+      function stopPillClass(stopCount) {
+        if (stopCount == null) return "";
+        if (stopCount <= 0) return "bad";   // 도착
+        if (stopCount <= 1) return "warn";  // 곧 도착
+        if (stopCount <= 3) return "soon";  // 임박
+        return "ok";                        // 여유
+      }
+
+      function busPillClass(a) {
+        if (!a) return "";
+        if (a.is_full) return "bad";
+        if (a.is_arrived) return "bad";
+        const c = a.congestion;
+        if (c === "혼잡") return "warn";
+        if (c === "보통") return "soon";
+        if (c === "여유") return "ok";
+        return stopPillClass(a.stop_count);
+      }
+
+      /* ---------- Google Maps (Cafe) ---------- */
+      const cafeMapState = {
+        center: null,
+        radiusM: 500,
+        places: [],
+        selectedIdx: -1,
+        map: null,
+        markers: [],
+        centerMarker: null,
+        circle: null,
+        infoWindow: null,
+      };
+      let _gmapsLoaderPromise = null;
+
+      function loadGoogleMaps() {
+        if (window.google && window.google.maps) return Promise.resolve(window.google);
+        if (!GOOGLE_MAPS_API_KEY) {
+          return Promise.reject(new Error("GOOGLE_MAPS_API_KEY not set"));
+        }
+        if (_gmapsLoaderPromise) return _gmapsLoaderPromise;
+        _gmapsLoaderPromise = new Promise((resolve, reject) => {
+          const cbName = "__gmapsReady_" + Date.now();
+          window[cbName] = () => {
+            resolve(window.google);
+            try { delete window[cbName]; } catch (e) {}
+          };
+          const s = document.createElement("script");
+          const params = new URLSearchParams({
+            key: GOOGLE_MAPS_API_KEY,
+            callback: cbName,
+            v: "weekly",
+            libraries: "marker",
+            language: "ko",
+            region: "KR",
+          });
+          s.src = `https://maps.googleapis.com/maps/api/js?${params.toString()}`;
+          s.async = true;
+          s.defer = true;
+          s.onerror = () => reject(new Error("Google Maps JS load failed"));
+          document.head.appendChild(s);
+        });
+        return _gmapsLoaderPromise;
+      }
+
+      const cafeMapStyleDark = [
+        { elementType: "geometry", stylers: [{ color: "#0f1220" }] },
+        { elementType: "labels.text.fill", stylers: [{ color: "#7f8aad" }] },
+        { elementType: "labels.text.stroke", stylers: [{ color: "#0f1220" }] },
+        { featureType: "road", elementType: "geometry", stylers: [{ color: "#1a1f33" }] },
+        { featureType: "road.arterial", elementType: "geometry", stylers: [{ color: "#222845" }] },
+        { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#2d355a" }] },
+        { featureType: "water", elementType: "geometry", stylers: [{ color: "#0a1a2b" }] },
+        { featureType: "poi", elementType: "labels", stylers: [{ visibility: "off" }] },
+        { featureType: "transit", elementType: "labels", stylers: [{ visibility: "off" }] },
+      ];
+
+      async function setupCafeMap() {
+        const host = document.getElementById("cafeMapCanvas");
+        const hint = document.getElementById("cafeMapHint");
+        if (!host) return;
+        if (!GOOGLE_MAPS_API_KEY) {
+          if (hint) hint.textContent = "GOOGLE_MAPS_API_KEY 미설정 · 목록만 표시";
+          return;
+        }
+        const { center, places } = cafeMapState;
+        if (!center || !places.length) {
+          if (hint) hint.textContent = "지도 데이터를 준비 중입니다";
+          return;
+        }
+        try {
+          const google = await loadGoogleMaps();
+          cafeMapState.map = new google.maps.Map(host, {
+            center: { lat: center.lat, lng: center.lng },
+            zoom: 16,
+            disableDefaultUI: true,
+            gestureHandling: "greedy",
+            backgroundColor: "#0b0d16",
+            clickableIcons: false,
+            ...(GOOGLE_MAPS_MAP_ID
+              ? { mapId: GOOGLE_MAPS_MAP_ID }
+              : { styles: cafeMapStyleDark }),
+          });
+          cafeMapState.infoWindow = new google.maps.InfoWindow({ disableAutoPan: true });
+
+          cafeMapState.circle = new google.maps.Circle({
+            map: cafeMapState.map,
+            center: { lat: center.lat, lng: center.lng },
+            radius: cafeMapState.radiusM || 500,
+            strokeColor: "#5f7cff",
+            strokeOpacity: 0.6,
+            strokeWeight: 1,
+            fillColor: "#5f7cff",
+            fillOpacity: 0.08,
+            clickable: false,
+          });
+
+          cafeMapState.centerMarker = new google.maps.Marker({
+            map: cafeMapState.map,
+            position: { lat: center.lat, lng: center.lng },
+            title: center.label || "회사",
+            zIndex: 999,
+            icon: {
+              path: google.maps.SymbolPath.CIRCLE,
+              scale: 7,
+              fillColor: "#ffd66b",
+              fillOpacity: 1,
+              strokeColor: "#1b2030",
+              strokeWeight: 2,
+            },
+          });
+
+          cafeMapState.markers = places
+            .map((p, i) => {
+              if (p.lat == null || p.lng == null) return null;
+              const m = new google.maps.Marker({
+                map: cafeMapState.map,
+                position: { lat: p.lat, lng: p.lng },
+                title: p.name || "",
+                icon: {
+                  path: google.maps.SymbolPath.CIRCLE,
+                  scale: 6,
+                  fillColor: "#5f7cff",
+                  fillOpacity: 0.95,
+                  strokeColor: "#0b0d16",
+                  strokeWeight: 2,
+                },
+              });
+              m.addListener("click", () => focusCafe(i));
+              return m;
+            })
+            .filter(Boolean);
+
+          // 영역 맞추기 (회사 + 카페들)
+          const bounds = new google.maps.LatLngBounds();
+          bounds.extend({ lat: center.lat, lng: center.lng });
+          cafeMapState.markers.forEach((m) => bounds.extend(m.getPosition()));
+          if (!bounds.isEmpty()) {
+            cafeMapState.map.fitBounds(bounds, { top: 24, right: 24, bottom: 24, left: 24 });
+          }
+
+          if (hint) hint.remove();
+        } catch (err) {
+          console.warn("cafe map setup failed", err);
+          if (hint) hint.textContent = "지도를 불러오지 못했어요 (키/네트워크 확인)";
+        }
+      }
+
+      function focusCafe(idx) {
+        const { places, markers, map, infoWindow } = cafeMapState;
+        const p = places[idx];
+        if (!p) return;
+        cafeMapState.selectedIdx = idx;
+
+        // 목록 active 상태
+        document
+          .querySelectorAll("#cafeList li[data-cafe-idx]")
+          .forEach((el) => {
+            el.classList.toggle(
+              "is-active",
+              String(idx) === el.dataset.cafeIdx
+            );
+          });
+
+        if (!map || !markers.length) return;
+        const marker = markers[idx];
+        if (marker) {
+          map.panTo(marker.getPosition());
+          map.setZoom(Math.max(map.getZoom() || 16, 17));
+          if (infoWindow) {
+            infoWindow.setContent(
+              `<div style="font-size:12px;color:#0b0d16;padding:2px 2px 0;min-width:120px">
+                 <b>${escapeHtml(p.name || "")}</b><br/>
+                 <span style="color:#555">${escapeHtml(
+                   [p.category, fmtDistance(p.distance_m)].filter(Boolean).join(" · ")
+                 )}</span>
+               </div>`
+            );
+            infoWindow.open({ map, anchor: marker });
+          }
+        } else if (p.lat != null && p.lng != null) {
+          map.panTo({ lat: p.lat, lng: p.lng });
+        }
+      }
+
+      /* ---------- Pet Chat (ADK 2.0 Supervisor Agent) ---------- */
+      const chatState = {
+        sessionId: null,
+        messages: [],       // {role:'user'|'pet'|'trace', text, klass?}
+        sending: false,
+        bootstrapped: false,
+      };
+
+      function chatPaneHtml() {
+        return `
+          <div class="chat-wrap">
+            <div class="chat-log" id="chatLog"></div>
+            <div class="chat-input">
+              <input id="chatInput" placeholder="뭐든 물어보세요 (예: 회의 전에 뭐 먹지?)" />
+              <button id="chatSend">보내기</button>
+            </div>
+            <div class="chat-actions">
+              <span id="chatSessionLabel">새 세션</span>
+              <button id="chatReset" title="새 대화 시작">초기화</button>
+            </div>
+          </div>
+        `;
+      }
+
+      function appendChatMessage(role, text, klass) {
+        chatState.messages.push({ role, text, klass });
+        const log = document.getElementById("chatLog");
+        if (!log) return;
+        const div = document.createElement("div");
+        if (role === "trace") {
+          div.className = "chat-trace " + (klass || "");
+          div.textContent = text;
+        } else {
+          div.className = "chat-msg " + role + (klass ? " " + klass : "");
+          div.textContent = text;
+        }
+        log.appendChild(div);
+        log.scrollTop = log.scrollHeight;
+        return div;
+      }
+
+      function renderChatLog() {
+        const log = document.getElementById("chatLog");
+        if (!log) return;
+        log.innerHTML = "";
+        for (const m of chatState.messages) {
+          const div = document.createElement("div");
+          if (m.role === "trace") {
+            div.className = "chat-trace " + (m.klass || "");
+            div.textContent = m.text;
+          } else {
+            div.className = "chat-msg " + m.role + (m.klass ? " " + m.klass : "");
+            div.textContent = m.text;
+          }
+          log.appendChild(div);
+        }
+        log.scrollTop = log.scrollHeight;
+      }
+
+      function setupChatPane() {
+        const input = document.getElementById("chatInput");
+        const btnSend = document.getElementById("chatSend");
+        const btnReset = document.getElementById("chatReset");
+        if (!input || !btnSend || !btnReset) return;
+        renderChatLog();
+        updateChatSessionLabel();
+
+        // 최초 진입 시 빈 세션일 수 있으니 인사말 한 번만
+        if (!chatState.bootstrapped && chatState.messages.length === 0) {
+          appendChatMessage(
+            "pet",
+            "안녕하세요! 저는 당신의 반려 펫이에요 🐾\n버스 · 점심 · 카페 · 일정, 또는 '나 지금 피곤해' 같은 것도 같이 챙길 수 있어요."
+          );
+          chatState.bootstrapped = true;
+        }
+
+        btnSend.onclick = () => sendChatMessage();
+        btnReset.onclick = () => resetChatSession();
+        input.onkeydown = (e) => {
+          if (e.key === "Enter" && !e.isComposing) {
+            e.preventDefault();
+            sendChatMessage();
+          }
+        };
+        input.focus();
+      }
+
+      function updateChatSessionLabel() {
+        const el = document.getElementById("chatSessionLabel");
+        if (!el) return;
+        el.textContent = chatState.sessionId
+          ? `세션 ${chatState.sessionId.slice(0, 8)}…`
+          : "새 세션";
+      }
+
+      async function resetChatSession() {
+        // Stateless chat: 서버 세션 삭제 없이 로컬 상태만 초기화
+        chatState.sessionId = null;
+        chatState.messages = [];
+        chatState.bootstrapped = false;
+        renderChatLog();
+        updateChatSessionLabel();
+        setupChatPane();
+      }
+
+      async function sendChatMessage() {
+        if (chatState.sending) return;
+        const input = document.getElementById("chatInput");
+        const btn = document.getElementById("chatSend");
+        if (!input) return;
+        const text = (input.value || "").trim();
+        if (!text) return;
+        input.value = "";
+
+        chatState.sending = true;
+        if (btn) btn.disabled = true;
+
+        appendChatMessage("user", text);
+        const thinking = appendChatMessage("pet", "생각 중…", "thinking");
+
+        let petBubble = null;
+        let petText = "";
+
+        try {
+          const resp = await fetch(`/api/chat?user_id=${USER_ID}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              message: text,
+              session_id: chatState.sessionId,
+            }),
+          });
+          if (!resp.body) throw new Error("no body");
+
+          const reader = resp.body.getReader();
+          const decoder = new TextDecoder();
+          let buf = "";
+
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            buf += decoder.decode(value, { stream: true });
+            let idx;
+            while ((idx = buf.indexOf("\n\n")) !== -1) {
+              const frame = buf.slice(0, idx);
+              buf = buf.slice(idx + 2);
+              const { type, data } = parseSseFrame(frame);
+              if (!type) continue;
+              handleChatEvent(type, data, (chunk, replace) => {
+                if (thinking && thinking.parentElement) thinking.remove();
+                if (!petBubble) {
+                  petBubble = appendChatMessage("pet", "");
+                }
+                if (replace) {
+                  petText = chunk;
+                } else {
+                  petText += chunk;
+                }
+                petBubble.textContent = petText;
+                const log = document.getElementById("chatLog");
+                if (log) log.scrollTop = log.scrollHeight;
+              });
+            }
+          }
+        } catch (e) {
+          if (thinking && thinking.parentElement) thinking.remove();
+          appendChatMessage("trace", "⚠ " + (e?.message || e), "error");
+        } finally {
+          chatState.sending = false;
+          if (btn) btn.disabled = false;
+          if (input) input.focus();
+        }
+      }
+
+      function parseSseFrame(frame) {
+        let type = null;
+        const dataLines = [];
+        for (const line of frame.split("\n")) {
+          if (line.startsWith("event:")) type = line.slice(6).trim();
+          else if (line.startsWith("data:")) dataLines.push(line.slice(5).trim());
+        }
+        let data = null;
+        const joined = dataLines.join("\n");
+        try { data = joined ? JSON.parse(joined) : null; } catch (e) { data = joined; }
+        return { type, data };
+      }
+
+      function handleChatEvent(type, data, appendToPet) {
+        if (type === "session") {
+          if (data && data.session_id) {
+            chatState.sessionId = data.session_id;
+            updateChatSessionLabel();
+          }
+        } else if (type === "text") {
+          if (!data) return;
+          const piece = data.text || "";
+          if (!piece) return;
+          // partial 이면 append, 아니면 완결 텍스트로 교체
+          if (data.partial) appendToPet(piece, false);
+          else appendToPet(piece, true);
+        } else if (type === "tool_call") {
+          appendChatMessage(
+            "trace",
+            `🛠 ${data.author || "agent"} → ${data.tool}(${prettyArgs(data.args)})`,
+            "tool"
+          );
+        } else if (type === "tool_result") {
+          appendChatMessage(
+            "trace",
+            `↩ ${data.tool}: ${data.response_preview}`,
+            "tool"
+          );
+        } else if (type === "transfer") {
+          appendChatMessage("trace", `↪ delegate → ${data.to}`, "transfer");
+        } else if (type === "error") {
+          appendChatMessage("trace", "⚠ " + (data?.message || "error"), "error");
+        }
+      }
+
+      function prettyArgs(args) {
+        if (!args) return "";
+        try {
+          const s = JSON.stringify(args);
+          return s.length > 60 ? s.slice(0, 57) + "…" : s;
+        } catch (e) { return ""; }
+      }
+
+      /* ---------- 액션별 커스텀 렌더러 ---------- */
+      const renderers = {
+        bus(out) {
+          const d = out.dashboard?.data || {};
+          const arrivals = d.arrivals || [];
+          const note = d.note || "";
+          const haveConfig = !!currentUser.bus_stop_id;
+          const editMode = busEditing || !haveConfig;
+
+          const formHtml = editMode ? busEditorHtml() : "";
+
+          const routePills = (currentUser.bus_route_id || "")
+            .split(",")
+            .map((r) => r.trim())
+            .filter(Boolean)
+            .map(
+              (r) =>
+                `<span class="pill" style="background:#232842; color:#c8d3f5;">${escapeHtml(
+                  r
+                )}번</span>`
+            )
+            .join(" ");
+          const headerToolbar = haveConfig && !editMode
+            ? `<div class="pane-meta" style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
+                 <span style="flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                   🚏 ${escapeHtml(d.stop_name || currentUser.bus_stop_id)}
+                   ${routePills ? `· ${routePills}` : ""}
+                 </span>
+                 <button type="button" class="pill" style="cursor:pointer; background:#232842; color:#c8d3f5;"
+                   onclick="toggleBusEdit(true)">수정</button>
+               </div>`
+            : "";
+
+          if (!arrivals.length) {
+            return `
+              ${formHtml}
+              ${headerToolbar}
+              <p class="placeholder">${
+                note
+                  ? escapeHtml(note)
+                  : haveConfig
+                  ? "도착 예정 내 버스 없음"
+                  : "우측 상단 '수정'을 눌러 정류소와 탈 버스를 선택해 주세요."
+              }</p>
+            `;
+          }
+
+          const [first, ...rest] = arrivals;
+          const stopName = d.stop_name || d.stop_id || "-";
+          const firstBadges = [
+            first.bus_type && `<span class="pill soon">${escapeHtml(first.bus_type)}</span>`,
+            first.is_last && `<span class="pill bad">막차</span>`,
+          ].filter(Boolean).join(" ");
+          const firstFinal = first.final_stop
+            ? `<div class="sub">→ ${escapeHtml(first.final_stop)}행</div>`
+            : "";
+          const firstDir = first.direction
+            ? `<div class="sub">🧭 ${escapeHtml(first.direction)} 방향</div>`
+            : "";
+
+          return `
+            ${formHtml}
+            ${headerToolbar}
+            <div class="pane-hero">
+              <div>
+                <div class="label">내 버스</div>
+                <div class="big">${
+                  first.minutes ?? "-"
+                }<span class="unit">분 뒤</span></div>
+              </div>
+              <div class="title">
+                <div style="font-size:15px; font-weight:700; color:#e3eaff; letter-spacing:-0.01em;">
+                  🚌 ${escapeHtml(first.route || "-")}번
+                </div>
+                <div style="display:flex; gap:4px; flex-wrap:wrap; margin-top:3px;">
+                  <span class="pill ${busPillClass(first)}">${escapeHtml(
+                    first.seat || "-"
+                  )}</span>
+                  ${firstBadges}
+                </div>
+                <div class="sub" style="margin-top:3px;">🚏 ${escapeHtml(stopName)}</div>
+                ${firstDir}
+                ${firstFinal}
+              </div>
+            </div>
+            ${
+              rest.length
+                ? `<div class="pane-sub-title">다음 도착</div>
+                   <ul class="pane-list">${rest
+                     .map((a) => {
+                       const subs = [];
+                       if (a.bus_type) subs.push(escapeHtml(a.bus_type));
+                       if (a.is_last) subs.push("막차");
+                       if (a.final_stop) subs.push(`→ ${escapeHtml(a.final_stop)}`);
+                       return `
+                     <li>
+                       <span class="time">${escapeHtml(
+                         fmtMinutesLabel(a.minutes)
+                       )}</span>
+                       <span class="main">
+                         <span class="name">${escapeHtml(a.route || "-")}번</span>
+                         ${subs.length ? `<span class="sub">${subs.join(" · ")}</span>` : ""}
+                       </span>
+                       <span class="pill ${busPillClass(a)}">${escapeHtml(
+                         a.seat || "-"
+                       )}</span>
+                     </li>`;
+                     })
+                     .join("")}</ul>`
+                : ""
+            }
+          `;
+        },
+
+        cafe(out) {
+          const d = out.dashboard?.data || {};
+          const places = (d.places || []).slice(0, 8);
+          if (!places.length) {
+            return '<p class="placeholder">반경 500m 이내에 카페가 없습니다</p>';
+          }
+          // 지도 시각화용 payload 보관 (렌더 후 비동기로 setup)
+          cafeMapState.center = d.center || null;
+          cafeMapState.radiusM = d.radius_m || 500;
+          cafeMapState.places = places;
+          cafeMapState.selectedIdx = -1;
+
+          const mapKeyAvailable = !!GOOGLE_MAPS_API_KEY;
+          const hint = mapKeyAvailable
+            ? "지도를 불러오는 중..."
+            : "GOOGLE_MAPS_API_KEY 미설정 · 목록만 표시";
+          const mapBlock = `
+            <div class="cafe-map" id="cafeMap">
+              <div id="cafeMapCanvas"></div>
+              <div class="cafe-map-badge">500m</div>
+              <div class="cafe-map-hint" id="cafeMapHint">${escapeHtml(hint)}</div>
+            </div>`;
+
+          requestAnimationFrame(() => setupCafeMap());
+
+          return `
+            ${mapBlock}
+            <div class="pane-meta">☕ 반경 500m · ${places.length}곳 (거리순)</div>
+            <ul class="pane-list" id="cafeList">${places
+              .map(
+                (p, i) => `
+              <li data-cafe-idx="${i}" onclick="focusCafe(${i})">
+                <span class="main">
+                  <span class="name">${escapeHtml(p.name || "-")}</span>
+                  <span class="sub">${escapeHtml(
+                    [p.category, p.address].filter(Boolean).join(" · ")
+                  )}</span>
+                </span>
+                <span class="pill">${escapeHtml(
+                  fmtDistance(p.distance_m)
+                )}</span>
+              </li>`
+              )
+              .join("")}</ul>
+          `;
+        },
+
+        lunch_roulette(out) {
+          // 최신 추첨 결과를 state 에 반영하고 렌더
+          const d = out.dashboard?.data;
+          const isNewPick =
+            d && d.pick_id && lunchState.lastResult?.pick_id !== d.pick_id;
+          if (isNewPick) {
+            lunchState.lastResult = d;
+            lunchState.phase = "drawing";
+            if (Array.isArray(d.history)) lunchState.history = d.history;
+            requestAnimationFrame(() => playDrawAnimation(d));
+          } else if (d && Array.isArray(d.history) && d.history.length > 0) {
+            // 새 추첨이 아니라면 history 는 서버 응답이 더 길 때만 반영
+            // (사용자가 기록을 지운 직후 덮어쓰지 않게)
+            if (d.history.length >= (lunchState.history || []).length) {
+              lunchState.history = d.history;
+            }
+          }
+          const html = lunchPaneHtml();
+          // 재렌더 이후 canvas 가 있으면 정적 다시 그리기 (phase=done & ladder)
+          if (
+            lunchState.phase === "done" &&
+            lunchState.lastResult?.method === "ladder"
+          ) {
+            requestAnimationFrame(() => drawLadderFinal(lunchState.lastResult));
+          }
+          return html;
+        },
+
+        calendar(out) {
+          const d = out.dashboard?.data || {};
+          const events = d.events || [];
+          if (!events.length) {
+            return '<p class="placeholder">앞으로 4시간 이내 일정 없음 🎉</p>';
+          }
+          return `
+            <div class="pane-meta">🗓 앞으로 4시간</div>
+            <ul class="pane-list">${events
+              .map((e) => {
+                const m = minutesUntil(e.start);
+                let pill = "";
+                if (m != null) {
+                  if (m <= 0) pill = '<span class="pill bad">진행중</span>';
+                  else if (m <= 10) pill = `<span class="pill soon">+${m}분</span>`;
+                  else pill = `<span class="pill">+${m}분</span>`;
+                }
+                return `
+              <li>
+                <span class="time">${escapeHtml(formatClock(e.start))}</span>
+                <span class="main"><span class="name">${escapeHtml(
+                  e.summary || "(제목 없음)"
+                )}</span></span>
+                ${pill}
+              </li>`;
+              })
+              .join("")}</ul>
+          `;
+        },
+
+        pet_interact(out) {
+          const lines = out.dashboard?.lines || [];
+          const say = lines.find((l) => l.startsWith("[")) || "";
+          return `
+            <div class="pane-meta">💬 펫과 인터랙션</div>
+            <p style="font-size:12px; color:#e0af68; line-height:1.5; margin:0;">
+              ${escapeHtml(say || "반응 없음")}
+            </p>
+          `;
+        },
+
+        pet_chat(/* out */) {
+          requestAnimationFrame(() => setupChatPane());
+          return chatPaneHtml();
+        },
+      };
+
+      /* ---------- 버스 편집기 (정류소 검색 → 노선 선택) ---------- */
+      function busEditorHtml() {
+        const e = busEditor;
+        const selected = e.selectedStop;
+
+        const searchResultsHtml = (() => {
+          if (selected) return "";
+          if (e.searching) {
+            return `<div class="empty">검색 중…</div>`;
+          }
+          if (!e.query && !e.stations.length) {
+            return `<div class="empty">정류소 이름을 문장으로 적어도 됩니다. 검색을 눌러 주세요.</div>`;
+          }
+          if (!e.stations.length) {
+            const h = e.searchHint
+              ? escapeHtml(e.searchHint)
+              : "일치하는 정류소가 없습니다.";
+            return `<div class="empty">${h}</div>`;
+          }
+          return `
+            <ul class="list">
+              ${e.stations.map((s) => `
+                <li onclick="selectStation('${escapeHtml(s.stop_id)}', '${escapeHtml(
+                  s.name
+                )}')">
+                  <span class="main">
+                    🚏 ${escapeHtml(s.name)}
+                    <span class="sub">ARS ${escapeHtml(s.stop_id)}</span>
+                  </span>
+                  <span class="pill">선택</span>
+                </li>`).join("")}
+            </ul>
+          `;
+        })();
+
+        const routesHtml = (() => {
+          if (!selected) return "";
+          if (e.loadingRoutes) {
+            return `<div class="empty">경유 노선 불러오는 중…</div>`;
+          }
+          if (!e.routes.length) {
+            return `<div class="empty">경유 노선이 없습니다</div>`;
+          }
+          return `
+            <ul class="list">
+              ${e.routes.map((r) => {
+                const selectedCls = e.selectedRoutes.has(r.route)
+                  ? "selected"
+                  : "";
+                const sched = [r.first_time, r.last_time].filter(Boolean).join(" ~ ");
+                const meta = [
+                  r.type,
+                  r.interval_min ? `배차 ${r.interval_min}분` : "",
+                  sched,
+                  r.begin && r.end ? `${r.begin} → ${r.end}` : "",
+                ].filter(Boolean).join(" · ");
+                return `
+                  <li class="${selectedCls}" onclick="toggleRoute('${escapeHtml(
+                    r.route
+                  )}')">
+                    <span class="main">
+                      <b>${escapeHtml(r.route)}</b>번
+                      <span class="sub">${escapeHtml(meta)}</span>
+                    </span>
+                    <span class="pill ${
+                      e.selectedRoutes.has(r.route) ? "ok" : ""
+                    }">${
+                      e.selectedRoutes.has(r.route) ? "✓ 선택됨" : "탭하여 선택"
+                    }</span>
+                  </li>`;
+              }).join("")}
+            </ul>
+          `;
+        })();
+
+        return `
+          <div class="bus-editor">
+            <div class="step-label">1. 정류소 이름 (말로 적어도 됨)</div>
+            ${
+              selected
+                ? `<div class="selected-stop">
+                     <span class="name">🚏 ${escapeHtml(selected.name || "(이름없음)")}</span>
+                     <span class="ars">ARS ${escapeHtml(selected.stop_id)}</span>
+                     <button type="button" title="다른 정류소 선택" onclick="clearSelectedStop()">✕</button>
+                   </div>`
+                : `<form class="config-form" onsubmit="searchStations(event)">
+                     <input type="text" class="stop" id="busQueryInput"
+                       placeholder="예: 강남역 / 출근하는 정류장 여의나루역 / 12121"
+                       value="${escapeHtml(e.query)}" autocomplete="off" />
+                     <button type="submit" id="busSearchBtn">검색</button>
+                   </form>`
+            }
+            ${searchResultsHtml}
+
+            ${selected ? `<div class="step-label">2. 탈 버스 선택 (복수 선택 가능)</div>` : ""}
+            ${routesHtml}
+
+            <div class="actions-row">
+              ${
+                currentUser.bus_stop_id
+                  ? `<button type="button" onclick="cancelBusEdit()">취소</button>`
+                  : ""
+              }
+              <button type="button" class="primary" id="busSaveBtn"
+                onclick="saveBusConfig()" ${
+                  selected ? "" : "disabled"
+                }>저장</button>
+            </div>
+            <div class="config-hint">
+              이름은 짧게(「강남역」)만 써도 되고, 긴 문장이면 핵심 이름이 나오도록 자동으로 여러 번 찾아 봅니다.
+              경유 노선을 고르지 않으면 이 정류소의 <b>모든 노선</b> 을 조회합니다.
+            </div>
+          </div>
+        `;
+      }
+
+      function toggleBusEdit(on) {
+        busEditing = !!on;
+        if (busEditing) prefillBusEditor();
+        renderPaneFromCache();
+      }
+
+      function cancelBusEdit() {
+        busEditing = false;
+        renderPaneFromCache();
+      }
+
+      function prefillBusEditor() {
+        // 현재 저장된 설정을 editor state 에 복원
+        busEditor.query = "";
+        busEditor.stations = [];
+        busEditor.searching = false;
+        busEditor.selectedRoutes = new Set(
+          (currentUser.bus_route_id || "")
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean)
+        );
+        if (currentUser.bus_stop_id) {
+          const cached = paneCache.bus?.out?.dashboard?.data;
+          const stopName = cached?.stop_name || "";
+          busEditor.selectedStop = {
+            stop_id: currentUser.bus_stop_id,
+            name: stopName,
+          };
+          loadRoutesForSelected();
+        } else {
+          busEditor.selectedStop = null;
+          busEditor.routes = [];
+        }
+      }
+
+      async function searchStations(ev) {
+        ev.preventDefault();
+        const q = ($("busQueryInput")?.value || "").trim();
+        if (!q) {
+          toast("정류소 이름(또는 ARS 번호)을 입력해 주세요");
+          return;
+        }
+        busEditor.query = q;
+        busEditor.searching = true;
+        busEditor.stations = [];
+        busEditor.searchHint = "";
+        renderPaneFromCache();
+        try {
+          const r = await fetch(
+            `/api/bus/stations?q=${encodeURIComponent(q)}&limit=12`
+          );
+          if (!r.ok) throw new Error(`search ${r.status}`);
+          const data = await r.json();
+          busEditor.stations = data.items || [];
+          busEditor.searchHint = data.hint || "";
+        } catch (e) {
+          toast("검색 실패: " + e.message);
+        } finally {
+          busEditor.searching = false;
+          renderPaneFromCache();
+        }
+      }
+
+      async function selectStation(stopId, name) {
+        busEditor.selectedStop = { stop_id: stopId, name };
+        busEditor.routes = [];
+        busEditor.stations = [];
+        // 기존 선택된 노선은 유지 (동일 이름이면 그대로 체크 유지).
+        renderPaneFromCache();
+        await loadRoutesForSelected();
+      }
+
+      function clearSelectedStop() {
+        busEditor.selectedStop = null;
+        busEditor.routes = [];
+        renderPaneFromCache();
+      }
+
+      async function loadRoutesForSelected() {
+        const stop = busEditor.selectedStop;
+        if (!stop) return;
+        busEditor.loadingRoutes = true;
+        renderPaneFromCache();
+        try {
+          const r = await fetch(
+            `/api/bus/routes?ars_id=${encodeURIComponent(stop.stop_id)}`
+          );
+          if (!r.ok) throw new Error(`routes ${r.status}`);
+          const data = await r.json();
+          busEditor.routes = data.items || [];
+        } catch (e) {
+          toast("노선 조회 실패: " + e.message);
+        } finally {
+          busEditor.loadingRoutes = false;
+          renderPaneFromCache();
+        }
+      }
+
+      function toggleRoute(route) {
+        if (busEditor.selectedRoutes.has(route)) {
+          busEditor.selectedRoutes.delete(route);
+        } else {
+          busEditor.selectedRoutes.add(route);
+        }
+        renderPaneFromCache();
+      }
+
+      async function saveBusConfig() {
+        const stop = busEditor.selectedStop;
+        if (!stop) {
+          toast("정류소를 먼저 선택해 주세요");
+          return;
+        }
+        const routeCsv = Array.from(busEditor.selectedRoutes).join(",");
+        const btn = $("busSaveBtn");
+        if (btn) btn.disabled = true;
+        try {
+          const r = await fetch(`/api/user/bus?user_id=${USER_ID}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              stop_id: stop.stop_id,
+              route_id: routeCsv || null,
+            }),
+          });
+          if (!r.ok) throw new Error(`save ${r.status}`);
+          const data = await r.json();
+          currentUser.bus_stop_id = data.stop_id;
+          currentUser.bus_route_id = data.route_id;
+          busEditing = false;
+          toast("저장했어요. 도착 정보 조회 중…");
+          await runAction("bus");
+        } catch (e) {
+          toast("저장 실패: " + e.message);
+        } finally {
+          if (btn) btn.disabled = false;
+        }
+      }
+
+      async function runAction(action, payload = null) {
+        setActiveButton(action);
+
+        // pet_chat 은 ADK Chat Runner 전용 — Graph Workflow 를 태우지 않는다.
+        if (action === "pet_chat") {
+          renderActionResult(action, {});
+          return;
+        }
+
+        const btns = document.querySelectorAll(".actions button");
+        btns.forEach((b) => (b.disabled = true));
+        try {
+          const body = payload ? { action, payload } : { action };
+          const r = await fetch(`/api/action?user_id=${USER_ID}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          });
+          if (!r.ok) throw new Error(`action ${r.status}`);
+          const out = await r.json();
+          renderActionResult(action, out);
+          if (out.care) {
+            if (out.care.leveled_up) toast("✨ 레벨업!");
+            else if (out.care.evolved_to) toast(`🔥 진화: ${out.care.evolved_to}`);
+          }
+          await fetchState();
+        } catch (e) {
+          toast("실행 실패: " + e.message);
+        } finally {
+          btns.forEach((b) => (b.disabled = false));
+        }
+      }
+
+      /* ==================== 점심 추첨 ==================== */
+
+      function lunchPaneHtml() {
+        const s = lunchState;
+        const result = s.lastResult;
+        const phase = s.phase;
+
+        // ---- 왼쪽: 입력 / 결과(애니메이션) ----
+        let mainHtml = "";
+        if (phase === "idle" || !result) {
+          const tagsHtml =
+            s.menus.length === 0
+              ? `<span class="placeholder" style="font-size:10px; color:var(--muted);">메뉴를 추가하세요.</span>`
+              : s.menus
+                  .map(
+                    (m, i) => `
+                <span class="lunch-tag">${escapeHtml(m)}
+                  <button type="button" onclick="removeLunchMenu(${i})" title="삭제">×</button>
+                </span>`
+                  )
+                  .join("");
+          const dis = s.menus.length < 2 || s.drawing;
+          const disAttr = dis ? "disabled" : "";
+          mainHtml = `
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div class="method-badge">🎲 오늘은 어떻게?</div>
+              <button class="lunch-reset-btn" onclick="resetLunchMenus()">기본 메뉴로</button>
+            </div>
+            <div class="lunch-tags" id="lunchTags">${tagsHtml}</div>
+            <form class="lunch-add" onsubmit="addLunchMenu(event)">
+              <input id="lunchMenuInput" type="text"
+                placeholder="메뉴 입력 후 Enter (쉼표로 여러 개)" autocomplete="off" />
+              <button type="submit">추가</button>
+            </form>
+            <button class="lunch-go" onclick="startLunchDraw()" ${disAttr}>
+              ${s.drawing ? "추첨 중…" : "🎲 랜덤 방식으로 추첨"}
+            </button>
+            <div class="lunch-methods">
+              <button type="button" onclick="startLunchDraw('lottery')" ${disAttr}>🎫 제비뽑기</button>
+              <button type="button" onclick="startLunchDraw('ladder')" ${disAttr}>🪜 사다리타기</button>
+              <button type="button" onclick="startLunchDraw('roulette')" ${disAttr}>🎡 룰렛</button>
+            </div>
+          `;
+        } else {
+          // 결과 스테이지 (drawing 진행 중이거나 done)
+          const busy = s.drawing || phase !== "done";
+          const busyAttr = busy ? "disabled" : "";
+          mainHtml = `
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div class="method-badge">🎲 ${escapeHtml(
+                result.method_label
+              )}</div>
+              <button class="lunch-reset-btn" onclick="goLunchIdle()">✍ 메뉴/방식 바꾸기</button>
+            </div>
+            <div class="lunch-stage" id="lunchStage">
+              ${renderLunchStageSkeleton(result)}
+            </div>
+            <div class="lunch-winner" id="lunchWinner"
+              style="${phase === "done" ? "" : "opacity:0.2;"}">
+              ${phase === "done" ? "🍽 " + escapeHtml(result.winner) : "두근두근…"}
+              <small>${phase === "done" ? "맛있게 드세요" : "고르는 중"}</small>
+            </div>
+            <div class="lunch-redraw">
+              <button class="primary" onclick="startLunchDraw()" ${busyAttr}>🔁 같은 메뉴로 다시 뽑기</button>
+              <div class="mini-methods">
+                <button type="button" onclick="startLunchDraw('lottery')" ${busyAttr}>🎫</button>
+                <button type="button" onclick="startLunchDraw('ladder')" ${busyAttr}>🪜</button>
+                <button type="button" onclick="startLunchDraw('roulette')" ${busyAttr}>🎡</button>
+              </div>
+            </div>
+          `;
+        }
+
+        // ---- 오른쪽: 기록 ----
+        const hist = s.history || [];
+        const historyHtml = hist.length
+          ? `<ul>${hist
+              .map(
+                (h) => `
+              <li title="${escapeHtml(h.method_label || "")} · ${escapeHtml(
+                new Date(h.ts * 1000).toLocaleString()
+              )}">
+                <span class="m">🍱 ${escapeHtml(h.winner)}</span>
+                <span class="meta">
+                  <span>${escapeHtml(h.method_label || "")}</span>
+                  <span>${escapeHtml(lunchAgo(h.ts))}</span>
+                </span>
+              </li>`
+              )
+              .join("")}</ul>`
+          : `<div class="empty">아직 기록 없음</div>`;
+
+        return `
+          <div class="lunch-wrap">
+            <div class="lunch-main">${mainHtml}</div>
+            <aside class="lunch-history">
+              <h4>최근 기록</h4>
+              ${historyHtml}
+              ${
+                hist.length
+                  ? `<button class="lunch-reset-btn" style="align-self:flex-end;"
+                      onclick="clearLunchHistory()">기록 지우기</button>`
+                  : ""
+              }
+            </aside>
+          </div>
+        `;
+      }
+
+      function renderLunchStageSkeleton(r) {
+        if (!r) return "";
+        const done = lunchState.phase === "done";
+        if (r.method === "lottery") {
+          return `<div class="lot-grid">${r.menus
+            .map((m, i) => {
+              let cls = "lot-card";
+              if (done) cls += i === r.winner_idx ? " winner" : " revealed";
+              return `
+                <div class="${cls}" data-idx="${i}"
+                  data-face="${escapeHtml(m)}">${escapeHtml(m)}</div>`;
+            })
+            .join("")}</div>`;
+        }
+        if (r.method === "ladder") {
+          return `<canvas class="ladder-canvas" id="ladderCanvas" width="320" height="180"></canvas>`;
+        }
+        // roulette
+        const finalStyle = done
+          ? `style="transform: rotate(${r.meta?.final_angle ?? 0}deg); transition:none;"`
+          : "";
+        return `
+          <div class="roulette-wrap">
+            <div class="roulette-pointer"></div>
+            <svg viewBox="-100 -100 200 200" class="roulette" id="rouletteSvg" ${finalStyle}>
+              ${r.menus
+                .map((m, i) => rouletteSector(i, r.menus.length, m))
+                .join("")}
+            </svg>
+          </div>
+        `;
+      }
+
+      function rouletteSector(i, n, label) {
+        const seg = 360 / n;
+        const start = (i * seg - 90) * (Math.PI / 180);
+        const end = ((i + 1) * seg - 90) * (Math.PI / 180);
+        const x1 = 100 * Math.cos(start);
+        const y1 = 100 * Math.sin(start);
+        const x2 = 100 * Math.cos(end);
+        const y2 = 100 * Math.sin(end);
+        const large = seg > 180 ? 1 : 0;
+        const midAng = (i * seg + seg / 2 - 90) * (Math.PI / 180);
+        const tx = 60 * Math.cos(midAng);
+        const ty = 60 * Math.sin(midAng);
+        const palette = [
+          "#7aa2f7", "#bb9af7", "#7dcfff", "#9ece6a",
+          "#e0af68", "#f7768e", "#73daca", "#c0caf5",
+        ];
+        const fill = palette[i % palette.length];
+        return `
+          <path d="M0 0 L ${x1} ${y1} A 100 100 0 ${large} 1 ${x2} ${y2} Z"
+            fill="${fill}" stroke="#0c0e17" stroke-width="1"/>
+          <text x="${tx}" y="${ty}" fill="#0a0c14" font-size="9"
+            text-anchor="middle" dominant-baseline="middle"
+            transform="rotate(${i * seg + seg / 2} ${tx} ${ty})">
+            ${escapeHtml(String(label).slice(0, 5))}
+          </text>`;
+      }
+
+      function playDrawAnimation(r) {
+        if (!r) return;
+        lunchState.phase = "drawing";
+        if (r.method === "roulette") animateRoulette(r);
+        else if (r.method === "ladder") animateLadder(r);
+        else animateLottery(r);
+      }
+
+      function animateRoulette(r) {
+        const el = document.getElementById("rouletteSvg");
+        if (!el) return finalizeDraw(2800);
+        const ang = r.meta?.final_angle ?? 1440;
+        const dur = r.meta?.duration_ms ?? 2600;
+        el.style.setProperty("--dur", dur + "ms");
+        el.style.transform = "rotate(0deg)";
+        void el.offsetWidth;
+        requestAnimationFrame(() => {
+          el.style.transform = `rotate(${ang}deg)`;
+        });
+        finalizeDraw(dur + 250);
+      }
+
+      function animateLottery(r) {
+        const stage = document.getElementById("lunchStage");
+        if (!stage) return finalizeDraw(2400);
+        const cards = stage.querySelectorAll(".lot-card");
+        const order = r.meta?.reveal_order || r.menus.map((_, i) => i);
+        const winnerIdx = r.winner_idx;
+        const total = order.length;
+        order.forEach((idx, step) => {
+          setTimeout(() => {
+            const c = cards[idx];
+            if (!c) return;
+            if (idx === winnerIdx && step === total - 1) {
+              c.classList.add("winner");
+            } else {
+              c.classList.add("revealed");
+            }
+          }, 140 * (step + 1));
+        });
+        finalizeDraw(140 * (total + 2));
+      }
+
+      function animateLadder(r) {
+        const cv = document.getElementById("ladderCanvas");
+        if (!cv) return finalizeDraw(2400);
+        const ctx = cv.getContext("2d");
+        const w = cv.width, h = cv.height;
+        const n = r.menus.length;
+        const pad = 18;
+        const colW = (w - pad * 2) / (n - 1);
+        const legs = r.meta?.legs || [];
+        const levels = r.meta?.levels || legs.length;
+        const startIdx = r.meta?.start_idx ?? r.winner_idx;
+        const topY = pad;
+        const bottomY = h - pad - 14;
+        const rowH = (bottomY - topY) / levels;
+
+        ctx.clearRect(0, 0, w, h);
+        ctx.font = "9px system-ui";
+        ctx.fillStyle = "#7c829a";
+        ctx.textAlign = "center";
+        // 열 라벨
+        for (let i = 0; i < n; i++) {
+          ctx.fillText(r.menus[i].slice(0, 4), pad + i * colW, h - 2);
+        }
+        ctx.strokeStyle = "#2a2e44";
+        ctx.lineWidth = 1;
+        // 세로선
+        for (let i = 0; i < n; i++) {
+          ctx.beginPath();
+          ctx.moveTo(pad + i * colW, topY);
+          ctx.lineTo(pad + i * colW, bottomY);
+          ctx.stroke();
+        }
+        // 가로선
+        legs.forEach((layer, li) => {
+          const y = topY + rowH * (li + 0.5);
+          layer.forEach((c) => {
+            ctx.beginPath();
+            ctx.moveTo(pad + c * colW, y);
+            ctx.lineTo(pad + (c + 1) * colW, y);
+            ctx.stroke();
+          });
+        });
+
+        // 경로 애니메이션
+        ctx.strokeStyle = "#7aa2f7";
+        ctx.lineWidth = 2.2;
+        ctx.lineCap = "round";
+        let curCol = startIdx;
+        let curY = topY;
+        let li = 0;
+        const step = () => {
+          if (li >= legs.length) {
+            // 마지막 세로선 내려가 끝
+            ctx.beginPath();
+            ctx.moveTo(pad + curCol * colW, curY);
+            ctx.lineTo(pad + curCol * colW, bottomY);
+            ctx.stroke();
+            return finalizeDraw(300);
+          }
+          const y = topY + rowH * (li + 0.5);
+          // 세로로 y 까지 내려가기
+          ctx.beginPath();
+          ctx.moveTo(pad + curCol * colW, curY);
+          ctx.lineTo(pad + curCol * colW, y);
+          ctx.stroke();
+          curY = y;
+          const layer = legs[li];
+          if (layer.includes(curCol)) {
+            // 오른쪽 이동
+            ctx.beginPath();
+            ctx.moveTo(pad + curCol * colW, y);
+            ctx.lineTo(pad + (curCol + 1) * colW, y);
+            ctx.stroke();
+            curCol += 1;
+          } else if (layer.includes(curCol - 1)) {
+            ctx.beginPath();
+            ctx.moveTo(pad + curCol * colW, y);
+            ctx.lineTo(pad + (curCol - 1) * colW, y);
+            ctx.stroke();
+            curCol -= 1;
+          }
+          li += 1;
+          setTimeout(step, 180);
+        };
+        step();
+      }
+
+      function drawLadderFinal(r) {
+        // animateLadder 의 step 로직을 즉시 전체 경로로 재현
+        const cv = document.getElementById("ladderCanvas");
+        if (!cv) return;
+        const ctx = cv.getContext("2d");
+        const w = cv.width, h = cv.height;
+        const n = r.menus.length;
+        const pad = 18;
+        const colW = (w - pad * 2) / (n - 1);
+        const legs = r.meta?.legs || [];
+        const levels = r.meta?.levels || legs.length;
+        const startIdx = r.meta?.start_idx ?? r.winner_idx;
+        const topY = pad;
+        const bottomY = h - pad - 14;
+        const rowH = (bottomY - topY) / levels;
+        ctx.clearRect(0, 0, w, h);
+        ctx.font = "9px system-ui";
+        ctx.fillStyle = "#7c829a";
+        ctx.textAlign = "center";
+        for (let i = 0; i < n; i++) {
+          ctx.fillText(r.menus[i].slice(0, 4), pad + i * colW, h - 2);
+        }
+        ctx.strokeStyle = "#2a2e44";
+        ctx.lineWidth = 1;
+        for (let i = 0; i < n; i++) {
+          ctx.beginPath();
+          ctx.moveTo(pad + i * colW, topY);
+          ctx.lineTo(pad + i * colW, bottomY);
+          ctx.stroke();
+        }
+        legs.forEach((layer, li) => {
+          const y = topY + rowH * (li + 0.5);
+          layer.forEach((c) => {
+            ctx.beginPath();
+            ctx.moveTo(pad + c * colW, y);
+            ctx.lineTo(pad + (c + 1) * colW, y);
+            ctx.stroke();
+          });
+        });
+        ctx.strokeStyle = "#7aa2f7";
+        ctx.lineWidth = 2.2;
+        let curCol = startIdx;
+        let curY = topY;
+        legs.forEach((layer, li) => {
+          const y = topY + rowH * (li + 0.5);
+          ctx.beginPath();
+          ctx.moveTo(pad + curCol * colW, curY);
+          ctx.lineTo(pad + curCol * colW, y);
+          ctx.stroke();
+          curY = y;
+          if (layer.includes(curCol)) {
+            ctx.beginPath();
+            ctx.moveTo(pad + curCol * colW, y);
+            ctx.lineTo(pad + (curCol + 1) * colW, y);
+            ctx.stroke();
+            curCol += 1;
+          } else if (layer.includes(curCol - 1)) {
+            ctx.beginPath();
+            ctx.moveTo(pad + curCol * colW, y);
+            ctx.lineTo(pad + (curCol - 1) * colW, y);
+            ctx.stroke();
+            curCol -= 1;
+          }
+        });
+        ctx.beginPath();
+        ctx.moveTo(pad + curCol * colW, curY);
+        ctx.lineTo(pad + curCol * colW, bottomY);
+        ctx.stroke();
+      }
+
+      function finalizeDraw(ms) {
+        setTimeout(() => {
+          lunchState.phase = "done";
+          renderPaneFromCache();
+          fetchLunchHistory(); // 확정된 기록을 서버와도 동기화
+        }, ms);
+      }
+
+      function addLunchMenu(ev) {
+        ev.preventDefault();
+        const inp = document.getElementById("lunchMenuInput");
+        const raw = (inp?.value || "").trim();
+        if (!raw) return;
+        const parts = raw
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean);
+        const merged = new Set(lunchState.menus);
+        parts.forEach((p) => {
+          if (p.length > 24) p = p.slice(0, 24);
+          if (merged.size < 20) merged.add(p);
+        });
+        lunchState.menus = [...merged];
+        if (inp) inp.value = "";
+        renderPaneFromCache();
+        document.getElementById("lunchMenuInput")?.focus();
+      }
+
+      function removeLunchMenu(i) {
+        lunchState.menus.splice(i, 1);
+        renderPaneFromCache();
+      }
+
+      function resetLunchMenus() {
+        lunchState.menus = [...DEFAULT_LUNCH_MENUS];
+        renderPaneFromCache();
+      }
+
+      async function startLunchDraw(method) {
+        if (lunchState.drawing) return;
+        if (lunchState.menus.length < 2) {
+          toast("메뉴를 2개 이상 추가해 주세요");
+          return;
+        }
+        lunchState.drawing = true;
+        // 결과 화면에서 재추첨하는 경우: 바로 drawing 상태로 전환해
+        // 이전 winner 가 '확정 결과'처럼 보이는 걸 방지
+        if (lunchState.lastResult) {
+          lunchState.phase = "drawing";
+        }
+        renderPaneFromCache();
+        try {
+          const payload = { menus: lunchState.menus };
+          if (method) payload.method = method;
+          await runAction("lunch_roulette", payload);
+        } finally {
+          lunchState.drawing = false;
+        }
+      }
+
+      function goLunchIdle() {
+        lunchState.phase = "idle";
+        lunchState.lastResult = null;
+        // 캐시된 이전 응답도 비워 렌더러가 재주입하지 않게
+        if (paneCache.lunch_roulette?.out?.dashboard?.data) {
+          paneCache.lunch_roulette.out.dashboard.data = { __idle: true };
+        }
+        renderPaneFromCache();
+      }
+
+      async function fetchLunchHistory() {
+        try {
+          const r = await fetch(`/api/lunch/history?user_id=${USER_ID}`);
+          if (!r.ok) return;
+          const data = await r.json();
+          lunchState.history = data.items || [];
+          if (activeAction === "lunch_roulette") renderPaneFromCache();
+        } catch {}
+      }
+
+      async function clearLunchHistory() {
+        try {
+          await fetch(`/api/lunch/history?user_id=${USER_ID}`, {
+            method: "DELETE",
+          });
+          lunchState.history = [];
+          // 캐시된 dashboard.data.history 도 함께 비워서 재렌더 시 복원되지 않게
+          const cached = paneCache.lunch_roulette?.out?.dashboard?.data;
+          if (cached) cached.history = [];
+          if (lunchState.lastResult) lunchState.lastResult.history = [];
+          renderPaneFromCache();
+          toast("기록을 지웠어요");
+        } catch {
+          toast("기록 삭제 실패");
+        }
+      }
+
+      function lunchAgo(ts) {
+        if (!ts) return "";
+        const diff = (Date.now() / 1000) - ts;
+        if (diff < 60) return "방금";
+        if (diff < 3600) return `${Math.round(diff / 60)}분 전`;
+        if (diff < 86400) return `${Math.round(diff / 3600)}시간 전`;
+        return `${Math.round(diff / 86400)}일 전`;
+      }
+
+      function escapeHtml(s) {
+        return String(s ?? "").replace(/[&<>\"']/g, (m) => ({
+          "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+        }[m]));
+      }
+
+      document.querySelectorAll(".actions button").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const action = btn.dataset.action;
+          const isSame = activeAction === action;
+
+          if (action === "status") {
+            setActiveButton("status");
+            fetchState().then(() => renderPaneFromCache());
+            return;
+          }
+
+          // 점심 탭: 추첨을 자동 실행하지 않고 입력 화면 노출
+          if (action === "lunch_roulette") {
+            setActiveButton("lunch_roulette");
+            if (!paneCache.lunch_roulette || isSame) {
+              // 캐시가 있으면 그대로, 없거나 같은 탭 재클릭이면 입력 화면으로
+              if (isSame) goLunchIdle();
+              paneCache.lunch_roulette = {
+                kind: "rich",
+                out: {
+                  dashboard: { data: lunchState.lastResult || { __idle: true } },
+                },
+              };
+            }
+            renderPaneFromCache();
+            fetchLunchHistory();
+            return;
+          }
+
+          if (isSame) {
+            runAction(action);
+            return;
+          }
+
+          if (paneCache[action]) {
+            setActiveButton(action);
+            renderPaneFromCache();
+            return;
+          }
+
+          runAction(action);
+        });
+      });
+
+      const KEY_MAP = {
+        s: "status", b: "bus", c: "cafe", l: "lunch_roulette",
+        g: "calendar", p: "pet_chat",
+      };
+      window.addEventListener("keydown", (e) => {
+        if (e.metaKey || e.ctrlKey || e.altKey) return;
+        if (!stateReady) return;
+        const ov = $("profileOverlay");
+        if (ov && !ov.classList.contains("hidden")) {
+          if (KEY_MAP[e.key.toLowerCase()]) e.preventDefault();
+          return;
+        }
+        const a = KEY_MAP[e.key.toLowerCase()];
+        if (a) {
+          e.preventDefault();
+          document.querySelector(`[data-action="${a}"]`)?.click();
+        }
+      });
+
+      fetchState().then(() => {
+        setActiveButton("status");
+        renderPaneFromCache();
+      });
+      setInterval(fetchState, 3000);
+    </script>
+  </body>
+</html>

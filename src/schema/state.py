@@ -1,29 +1,85 @@
-from typing import TypedDict, List, Dict, Any, Optional
-from pydantic import BaseModel
+"""Smart Office Life Agent 상태 스키마.
 
-class SlotInfo(BaseModel):
-    date: str
-    zone: str
-    available: bool
-    price: Optional[str] = None
-    url: Optional[str] = None
+ADK 2.0 Graph Workflow 에서 노드 간 전달/저장되는 컨텍스트 정의.
+"""
 
-class AgentState(TypedDict):
-    # Session
-    session_info: Dict[str, Any]      # Cookies, login status, etc.
-    target_site: str                  # Current URL being scanned
-    
-    # Results
-    scan_results: List[SlotInfo]      # Raw results from crawler
-    
-    # Matching
-    match_score: int                  # Score of the matched result (e.g. 100 for exact match)
-    best_match: Optional[SlotInfo]    # The slot selected for booking
-    
-    # HITL (Human-in-the-loop)
-    pending_action: Optional[str]     # e.g., "confirm_booking", "captcha_required"
-    user_decision: Optional[str]      # e.g., "approve", "reject"
-    
-    # Meta
-    retry_count: int
+from __future__ import annotations
+
+from typing import List, Dict, Any, Optional, Literal, TypedDict
+from datetime import datetime
+from pydantic import BaseModel, Field
+
+
+PetSpecies = Literal["fox", "turtle", "owl", "dragon", "egg"]
+PetMood = Literal["happy", "neutral", "tired", "stressed", "focused"]
+DashboardAction = Literal[
+    "status", "bus", "cafe", "lunch_roulette", "calendar", "pet_interact", "noop"
+]
+
+
+class UserContext(BaseModel):
+    user_id: int
+    display_name: Optional[str] = None
+    job_role: Optional[str] = None
+    dev_tendency: Optional[str] = None
+    company_lat: Optional[float] = None
+    company_lng: Optional[float] = None
+    bus_stop_id: Optional[str] = None
+    bus_route_id: Optional[str] = None
+
+
+class PetStatus(BaseModel):
+    species: PetSpecies = "egg"
+    nickname: Optional[str] = None
+    level: int = 1
+    exp: int = 0
+    mood: PetMood = "neutral"
+    stress: int = 0
+
+    def exp_to_next_level(self) -> int:
+        # 간단한 공식: 다음 레벨까지 level*100 EXP 필요
+        return max(0, self.level * 100 - self.exp)
+
+
+class SystemSnapshot(BaseModel):
+    ts: datetime = Field(default_factory=datetime.utcnow)
+    cpu_percent: float = 0.0
+    mem_percent: float = 0.0
+    click_count: int = 0
+    key_count: int = 0
+    active_tabs: int = 0
+    top_processes: List[Dict[str, Any]] = Field(default_factory=list)
+    screen_active_sec: int = 0
+
+
+class DashboardRequest(BaseModel):
+    user_id: int
+    action: DashboardAction = "status"
+    payload: Dict[str, Any] = Field(default_factory=dict)
+
+
+class DashboardResult(BaseModel):
+    user_id: int
+    action: DashboardAction
+    title: str
+    lines: List[str] = Field(default_factory=list)
+    data: Dict[str, Any] = Field(default_factory=dict)
+
+
+class PetCareResult(BaseModel):
+    user_id: int
+    exp_gain: int = 0
+    stress_delta: int = 0
+    mood: PetMood = "neutral"
+    leveled_up: bool = False
+    evolved_to: Optional[PetSpecies] = None
+    message: Optional[str] = None
+
+
+class AgentState(TypedDict, total=False):
+    user: UserContext
+    pet: PetStatus
+    snapshot: SystemSnapshot
+    last_dashboard: Optional[DashboardResult]
+    last_care: Optional[PetCareResult]
     error_msg: Optional[str]
