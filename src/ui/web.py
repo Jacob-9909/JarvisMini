@@ -60,6 +60,9 @@ DEFAULT_HEIGHT = 600
 DEFAULT_TITLE = "Smart Office Pet"
 
 
+REQUEST_INPUT_FC_NAME = "adk_request_input"
+
+
 def _event_to_sse(event: Any) -> Optional[Dict[str, Any]]:
     """ADK Event → 프론트엔드가 이해하기 쉬운 SSE payload.
 
@@ -67,6 +70,7 @@ def _event_to_sse(event: Any) -> Optional[Dict[str, Any]]:
     - tool_call : sub-agent 혹은 tool 호출 시작
     - tool_result: 도구 결과 요약
     - transfer  : sub-agent 로 전이
+    - interrupt : HITL(RequestInput) 발생. 다음 요청은 function_response 로 와야 함
     """
     author = getattr(event, "author", None) or "model"
     content = getattr(event, "content", None)
@@ -76,9 +80,18 @@ def _event_to_sse(event: Any) -> Optional[Dict[str, Any]]:
     if content is not None and getattr(content, "parts", None):
         texts: list[str] = []
         for p in content.parts:
-            # function_call / function_response
             fc = getattr(p, "function_call", None)
             if fc and getattr(fc, "name", None):
+                # RequestInput(HITL) 은 function_call 로 포장되어 나오므로 별도 이벤트로 분기.
+                if fc.name == REQUEST_INPUT_FC_NAME:
+                    args = dict(getattr(fc, "args", {}) or {})
+                    return {
+                        "type": "interrupt",
+                        "author": author,
+                        "interrupt_id": getattr(fc, "id", None),
+                        "message": args.get("message", ""),
+                        "response_schema": args.get("response_schema"),
+                    }
                 return {
                     "type": "tool_call",
                     "author": author,
@@ -107,7 +120,6 @@ def _event_to_sse(event: Any) -> Optional[Dict[str, Any]]:
                 "turn_complete": turn_complete,
             }
 
-    # Agent transfer (EventActions.transfer_to_agent)
     actions = getattr(event, "actions", None)
     transfer = getattr(actions, "transfer_to_agent", None) if actions else None
     if transfer:
@@ -228,6 +240,8 @@ def _create_app(default_user_id: int) -> FastAPI:
 
     @app.get("/api/state")
     async def api_state(user_id: int = default_user_id):
+        """세션을 닫기 전에 ORM 필드를 모두 읽는다. close() 이후 접근하면 만료·Detached 로
+        이전 커밋 값이 보이거나 오류가 날 수 있다."""
         db = SessionLocal()
         try:
             user = db.query(User).filter(User.id == user_id).first()
@@ -240,64 +254,64 @@ def _create_app(default_user_id: int) -> FastAPI:
                 .order_by(ActivityLog.ts.desc())
                 .first()
             )
+            profile_ok = _profile_complete(user)
+
+            live_cpu, live_mem = await asyncio.to_thread(read_live_cpu_mem)
+
+            pet_obj = Pet(
+                species=pet.species if pet else "egg",
+                nickname=pet.nickname if pet else None,
+            )
+            mood = pet.mood if pet else "neutral"
+            exp_to_next = (
+                max(0, pet.level * 100 - pet.exp) if pet else 100
+            )
+            return JSONResponse(
+                {
+                    "user": {
+                        "id": user.id,
+                        "display_name": user.display_name or user.username,
+                        "gender": user.gender,
+                        "age": user.age,
+                        "job_role": user.job_role,
+                        "dev_tendency": user.dev_tendency,
+                        "company_lat": user.company_lat,
+                        "company_lng": user.company_lng,
+                        "company_address": user.company_address,
+                        "bus_stop_id": user.bus_stop_id,
+                        "bus_route_id": user.bus_route_id,
+                        "profile_complete": profile_ok,
+                    },
+                    "pet": {
+                        "species": pet.species if pet else "egg",
+                        "nickname": pet.nickname if pet else None,
+                        "level": pet.level if pet else 1,
+                        "exp": pet.exp if pet else 0,
+                        "exp_to_next": exp_to_next,
+                        "mood": mood,
+                        "stress": pet.stress if pet else 0,
+                        "frame": pet_obj.frame(mood),
+                        "say": pet_obj.say(mood),
+                    },
+                    "activity": {
+                        "ts": last_log.ts.isoformat() if last_log else None,
+                        "cpu": last_log.cpu_percent if last_log else 0.0,
+                        "mem": last_log.mem_percent if last_log else 0.0,
+                        "tabs": last_log.active_tabs if last_log else 0,
+                        "clicks": last_log.click_count if last_log else 0,
+                        "keys": last_log.key_count if last_log else 0,
+                        "exp_gain_sample": last_log.computed_exp_gain if last_log else 0,
+                        "stress_delta_sample": last_log.computed_stress_delta if last_log else 0,
+                        "note": "클릭/키는 전역(pynput) 구간 합산, 탭은 확장 연동 전까지 0일 수 있음",
+                    },
+                    "live": {
+                        "cpu_percent": live_cpu,
+                        "mem_percent": live_mem,
+                    },
+                }
+            )
         finally:
             db.close()
-
-        live_cpu, live_mem = await asyncio.to_thread(read_live_cpu_mem)
-
-        pet_obj = Pet(
-            species=pet.species if pet else "egg",
-            nickname=pet.nickname if pet else None,
-        )
-        mood = pet.mood if pet else "neutral"
-        exp_to_next = (
-            max(0, pet.level * 100 - pet.exp) if pet else 100
-        )
-        profile_ok = _profile_complete(user)
-        return JSONResponse(
-            {
-                "user": {
-                    "id": user.id,
-                    "display_name": user.display_name or user.username,
-                    "gender": user.gender,
-                    "age": user.age,
-                    "job_role": user.job_role,
-                    "dev_tendency": user.dev_tendency,
-                    "company_lat": user.company_lat,
-                    "company_lng": user.company_lng,
-                    "company_address": user.company_address,
-                    "bus_stop_id": user.bus_stop_id,
-                    "bus_route_id": user.bus_route_id,
-                    "profile_complete": profile_ok,
-                },
-                "pet": {
-                    "species": pet.species if pet else "egg",
-                    "nickname": pet.nickname if pet else None,
-                    "level": pet.level if pet else 1,
-                    "exp": pet.exp if pet else 0,
-                    "exp_to_next": exp_to_next,
-                    "mood": mood,
-                    "stress": pet.stress if pet else 0,
-                    "frame": pet_obj.frame(mood),
-                    "say": pet_obj.say(mood),
-                },
-                "activity": {
-                    "ts": last_log.ts.isoformat() if last_log else None,
-                    "cpu": last_log.cpu_percent if last_log else 0.0,
-                    "mem": last_log.mem_percent if last_log else 0.0,
-                    "tabs": last_log.active_tabs if last_log else 0,
-                    "clicks": last_log.click_count if last_log else 0,
-                    "keys": last_log.key_count if last_log else 0,
-                    "exp_gain_sample": last_log.computed_exp_gain if last_log else 0,
-                    "stress_delta_sample": last_log.computed_stress_delta if last_log else 0,
-                    "note": "클릭/키는 전역(pynput) 구간 합산, 탭은 확장 연동 전까지 0일 수 있음",
-                },
-                "live": {
-                    "cpu_percent": live_cpu,
-                    "mem_percent": live_mem,
-                },
-            }
-        )
 
     @app.get("/api/bus/stations")
     async def api_bus_stations(q: str = "", limit: int = 10):
@@ -346,9 +360,10 @@ def _create_app(default_user_id: int) -> FastAPI:
             user.dev_tendency = (body.dev_tendency or "").strip() or None
             user.company_lat = lat
             user.company_lng = lng
-            if body.company_address is not None:
-                user.company_address = (body.company_address or "").strip() or None
+            # JSON 에서 null 이 오면 주소 비우기까지 반영해야 함 (if is not None 이면 갱신 안 됨)
+            user.company_address = (body.company_address or "").strip() or None
             db.commit()
+            db.refresh(user)
             return JSONResponse(
                 {
                     "ok": True,
@@ -382,27 +397,55 @@ def _create_app(default_user_id: int) -> FastAPI:
     # =============================================================
     @app.post("/api/chat")
     async def api_chat(body: ChatBody, user_id: int = default_user_id):
-        """Stateless chat: 요청마다 신규 세션으로 실행."""
+        """같은 session_id 로 재요청하면 Runner 세션(대화 이벤트)을 이어간다.
+
+        - 첫 메시지는 body.session_id 가 비어 있으면 서버가 새 id 를 만들어 SSE 로 내려준다.
+        - ``body.function_response`` 가 있으면 이 턴은 HITL interrupt 재개 요청으로
+          해석되어 Runner 에 function_response Content 를 ``new_message`` 로 전달한다.
+        """
         import json as _json
         from fastapi.responses import StreamingResponse
+        from google.genai import types as genai_types
+        from google.adk.workflow.utils._workflow_hitl_utils import (
+            create_request_input_response,
+            wrap_response,
+        )
 
         chat_runner = app.state.chat_runner
-        session_id = uuid.uuid4().hex
+        raw_sid = (body.session_id or "").strip()
+        session_id = raw_sid if raw_sid else uuid.uuid4().hex
+        is_resume = body.function_response is not None
 
         async def _stream():
             yield f"event: session\ndata: {_json.dumps({'session_id': session_id})}\n\n"
             token = None
             try:
-                wf_input = ChatWorkflowInput(user_id=user_id, message=body.message)
-                token = CURRENT_CHAT_INPUT.set(wf_input)
-                async for event in chat_runner.run_async(
-                    user_id=str(user_id),
-                    session_id=session_id,
-                    state_delta={"user_id": user_id, "input": wf_input.model_dump()},
-                ):
-                    data = _event_to_sse(event)
-                    if data is not None:
-                        yield f"event: {data['type']}\ndata: {_json.dumps(data, ensure_ascii=False)}\n\n"
+                if is_resume:
+                    fr_payload = body.function_response  
+                    fr_part = create_request_input_response(
+                        interrupt_id=fr_payload.id,
+                        response=wrap_response(fr_payload.response),
+                    )
+                    new_message = genai_types.Content(role="user", parts=[fr_part])
+                    async for event in chat_runner.run_async(
+                        user_id=str(user_id),
+                        session_id=session_id,
+                        new_message=new_message,
+                    ):
+                        data = _event_to_sse(event)
+                        if data is not None:
+                            yield f"event: {data['type']}\ndata: {_json.dumps(data, ensure_ascii=False)}\n\n"
+                else:
+                    wf_input = ChatWorkflowInput(user_id=user_id, message=body.message)
+                    token = CURRENT_CHAT_INPUT.set(wf_input)
+                    async for event in chat_runner.run_async(
+                        user_id=str(user_id),
+                        session_id=session_id,
+                        state_delta={"user_id": user_id, "input": wf_input.model_dump()},
+                    ):
+                        data = _event_to_sse(event)
+                        if data is not None:
+                            yield f"event: {data['type']}\ndata: {_json.dumps(data, ensure_ascii=False)}\n\n"
             except Exception as e:  # noqa: BLE001
                 logger.exception("chat runner error")
                 err = {"type": "error", "message": str(e)}
@@ -583,7 +626,9 @@ def run_desktop(
         height=height,
         resizable=True,
         frameless=frameless,
-        easy_drag=frameless,
+        # True면 본문 아무 곳이나 잡아도 창이 움직여 UI 조작이 불편함.
+        # 창 이동은 HTML 타이틀바의 -webkit-app-region: drag 만 사용한다.
+        easy_drag=False,
         on_top=on_top,
         background_color="#0f111a",
     )

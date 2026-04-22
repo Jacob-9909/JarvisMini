@@ -197,8 +197,12 @@ def run_monitor_tick_for_user(user_id: int) -> Optional[PetCareResult]:
     db = SessionLocal()
     try:
         user = db.query(User).filter(User.id == user_id).first()
-        if not user:
+        pet = db.query(PetProfile).filter(PetProfile.user_id == user_id).first()
+        if not user or not pet:
+            logger.warning("run_monitor_tick: missing user or pet row user_id=%s", user_id)
             return None
+        user_ctx = user_row_to_context(user)
+        pet_status = pet_row_to_status(pet)
     finally:
         db.close()
 
@@ -208,18 +212,6 @@ def run_monitor_tick_for_user(user_id: int) -> Optional[PetCareResult]:
     snapshot = snapshot_from_dict(snap_dict)
     exp_gain, stress_delta = compute_exp_stress_deltas(snap_dict, snapshot)
     persist_activity_log(user_id, snapshot, exp_gain, stress_delta)
-
-    db = SessionLocal()
-    try:
-        u = db.query(User).filter(User.id == user_id).first()
-        p = db.query(PetProfile).filter(PetProfile.user_id == user_id).first()
-        if not u or not p:
-            logger.warning("run_monitor_tick: missing user or pet row user_id=%s", user_id)
-            return None
-        user_ctx = user_row_to_context(u)
-        pet_status = pet_row_to_status(p)
-    finally:
-        db.close()
 
     return apply_pet_care_deltas(
         user_id,

@@ -7,7 +7,7 @@ import os
 from google.adk.agents import Agent
 
 from src.agent.tools import bus_arrival_tool, bus_search_tool, ask_user_tool
-from src.agent.callbacks import inject_runtime_state, reward_on_tool_use
+from src.agent.callbacks import inject_runtime_state
 
 MODEL = os.getenv("MODEL", "gemini-2.5-flash")
 
@@ -31,6 +31,5 @@ bus_agent = Agent(
     tools=[bus_arrival_tool, bus_search_tool, ask_user_tool],
     output_key="response",
     before_model_callback=inject_runtime_state,
-    after_tool_callback=reward_on_tool_use,
     disallow_transfer_to_peers=True,
 )

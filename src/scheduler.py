@@ -119,15 +119,15 @@ def seed_test_user(username: str = "test_user", channel_id: str = "") -> int:
             return user.id
         user = User(
             username=username,
-            display_name="테스트 사용자",
-            gender="etc",
+            display_name="정우혁",
+            gender="Male",
             age=28,
             job_role="ai",
-            dev_tendency="explorer",
-            company_lat=37.4979,
-            company_lng=127.0276,
-            company_address="서울 강남구 역삼동",
-            bus_stop_id="23-102",
+            dev_tendency="active",
+            company_lat=37.4839,
+            company_lng=126.8925,
+            company_address="서울 구로구 구로동",
+            bus_stop_id="17655",
             bus_route_id="146",
             slack_channel_id=channel_id or None,
             is_active=True,
@@ -137,7 +137,7 @@ def seed_test_user(username: str = "test_user", channel_id: str = "") -> int:
         db.add(
             PetProfile(
                 user_id=user.id,
-                species="egg",
+                species="owl",
                 nickname="삐약이",
                 level=1,
                 exp=0,

@@ -24,10 +24,6 @@ dependencies = [
     "textual>=0.86.0",
     "uvicorn>=0.32.0",
     "websockets>=15.0.1",
-]
-
-[project.optional-dependencies]
-google = [
     "google-api-python-client>=2.150.0",
     "google-auth-httplib2>=0.2.0",
     "google-auth-oauthlib>=1.2.1",

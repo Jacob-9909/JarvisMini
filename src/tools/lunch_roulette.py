@@ -25,11 +25,6 @@ from typing import Any, Deque, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-CATEGORIES = [
-    "한식", "중식", "일식", "양식",
-    "분식", "아시안", "샐러드", "패스트푸드",
-]
-
 DEFAULT_MENUS = [
     "김치찌개", "된장찌개", "돈까스", "짜장면", "짬뽕",
     "마라탕", "초밥", "라멘", "쌀국수", "파스타",
@@ -238,37 +233,3 @@ def _remember(user_id: int, record: Dict[str, Any]) -> None:
     with _history_lock:
         dq = _history.setdefault(user_id, deque(maxlen=_HISTORY_MAX))
         dq.append(record)
-
-
-# --------------------------------------------------------------------- #
-#  Backward-compat: workflow action node 가 `spin(...)` 을 호출하는 경로 유지
-# --------------------------------------------------------------------- #
-
-
-async def spin(
-    lat: Optional[float] = None,
-    lng: Optional[float] = None,
-    preferred: Optional[str] = None,
-    user_id: int = 0,
-    menus: Optional[List[str]] = None,
-    method: Optional[str] = None,
-) -> Dict[str, Any]:
-    """호환용 래퍼. 기존 시그니처(``lat,lng,preferred``)도 그대로 받는다.
-
-    실제 결과 구조는 :func:`draw` 와 동일.
-    """
-    # 카테고리 힌트가 ``preferred`` 로 들어오던 과거 호출도 허용.
-    # (카테고리 문자열은 이제 method 가 아님 → 그냥 메뉴 프리셋 힌트로 사용)
-    method_hint = method if method in METHODS else None
-    category_hint = preferred if preferred in CATEGORIES else None
-
-    result = draw(
-        user_id=user_id,
-        menus=menus,
-        method=method_hint,
-    )
-    # 기존 UI 가 쓰던 키들을 살짝 얹어 둔다(없으면 None).
-    result["category"] = category_hint
-    result["picked"] = {"name": result["winner"]}
-    result["candidates"] = [{"name": m} for m in result["menus"]]
-    return result

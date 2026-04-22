@@ -9,3 +9,9 @@ wheels/
 # Virtual environments
 .venv
 .env
+
+# Google OAuth / Calendar (비밀·토큰은 저장소에 올리지 않음)
+client_secret*.json
+credentials.json
+google_calendar_token.json
+data/google_calendar_token.json

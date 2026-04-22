@@ -23,7 +23,7 @@ def init_node(ctx, node_input: WorkflowInput | dict | None = None) -> Event:
 
     state_input = None
     try:
-        state_input = ctx.state.get("input")  # type: ignore[union-attr]
+        state_input = ctx.state.get("input")  
     except Exception:
         state_input = None
 

@@ -80,15 +80,15 @@ async def nearby_places(
 
 
 def _mock_places(category: str, query: Optional[str]) -> List[Dict[str, Any]]:
-    # 역삼역 부근 mock 좌표 — 지도 시각화 테스트용
+    # 구로구 구로동 대륭포스트타워8차 부근 mock 좌표 — 지도 시각화 테스트용
     if category == "FD6" or query:
         return [
-            {"name": "혼밥 라이언", "category": "음식점 > 한식", "distance_m": 120, "address": "역삼동 123", "url": "", "lat": 37.4988, "lng": 127.0278},
-            {"name": "스시 오마카세", "category": "음식점 > 일식", "distance_m": 230, "address": "역삼동 456", "url": "", "lat": 37.4972, "lng": 127.0290},
-            {"name": "마라탕 MAX", "category": "음식점 > 중식", "distance_m": 180, "address": "역삼동 789", "url": "", "lat": 37.4995, "lng": 127.0263},
+            {"name": "구로 한식당", "category": "음식점 > 한식", "distance_m": 110, "address": "서울 구로구 디지털로26길 111", "url": "", "lat": 37.4862, "lng": 126.9001},
+            {"name": "디지털단지 스시바", "category": "음식점 > 일식", "distance_m": 240, "address": "서울 구로구 구로동 188-25", "url": "", "lat": 37.4851, "lng": 126.9012},
+            {"name": "포스트타워 마라탕", "category": "음식점 > 중식", "distance_m": 165, "address": "서울 구로구 디지털로31길 12", "url": "", "lat": 37.4865, "lng": 126.8994},
         ]
     return [
-        {"name": "알베르 커피", "category": "카페 > 스페셜티", "distance_m": 90, "address": "역삼동 1", "url": "", "lat": 37.4981, "lng": 127.0283},
-        {"name": "스타벅스 강남R", "category": "카페 > 프랜차이즈", "distance_m": 210, "address": "역삼동 2", "url": "", "lat": 37.4990, "lng": 127.0260},
-        {"name": "블루보틀", "category": "카페 > 스페셜티", "distance_m": 350, "address": "역삼동 3", "url": "", "lat": 37.5005, "lng": 127.0272},
+        {"name": "카페 구로점", "category": "카페 > 스페셜티", "distance_m": 85, "address": "서울 구로구 디지털로26길 43", "url": "", "lat": 37.4856, "lng": 126.9008},
+        {"name": "스타벅스 구로디지털", "category": "카페 > 프랜차이즈", "distance_m": 195, "address": "서울 구로구 구로동 197-11", "url": "", "lat": 37.4868, "lng": 126.8999},
+        {"name": "투썸플레이스 대륭", "category": "카페 > 프랜차이즈", "distance_m": 320, "address": "서울 구로구 디지털로 300", "url": "", "lat": 37.4849, "lng": 126.9018},
     ]

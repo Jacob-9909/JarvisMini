@@ -176,8 +176,7 @@ class SystemMonitor:
         with self._lock:
             return float(self._latest_cpu), float(self._latest_mem)
 
-    def peek_snapshot(self) -> Dict[str, Any]:
-        """현재 누적치를 반환하되 **카운터를 리셋하지 않는다** (LLM 진단용)."""
+    def _build_snapshot(self, *, reset: bool) -> Dict[str, Any]:
         with self._lock:
             snap = {
                 "ts": datetime.utcnow(),
@@ -187,6 +186,9 @@ class SystemMonitor:
                 "cpu_percent": self._latest_cpu,
                 "mem_percent": self._latest_mem,
             }
+            if reset:
+                self._counters = _Counters()
+
         top = self._top_processes()
         try:
             tabs = int(self._tab_count_provider() or 0)
@@ -196,27 +198,11 @@ class SystemMonitor:
         snap["active_tabs"] = tabs
         snap["heavy_ide"] = self._has_heavy_ide(top)
         return snap
+
+    def peek_snapshot(self) -> Dict[str, Any]:
+        """현재 누적치를 반환하되 **카운터를 리셋하지 않는다** (LLM 진단용)."""
+        return self._build_snapshot(reset=False)
 
     def get_snapshot_and_reset(self) -> Dict[str, Any]:
         """현재 누적치를 반환하고 counter 를 리셋."""
-        with self._lock:
-            snap = {
-                "ts": datetime.utcnow(),
-                "click_count": self._counters.click_count,
-                "key_count": self._counters.key_count,
-                "screen_active_sec": self._counters.screen_active_sec,
-                "cpu_percent": self._latest_cpu,
-                "mem_percent": self._latest_mem,
-            }
-            self._counters = _Counters()
-
-        top = self._top_processes()
-        try:
-            tabs = int(self._tab_count_provider() or 0)
-        except Exception:
-            tabs = 0
-
-        snap["top_processes"] = top
-        snap["active_tabs"] = tabs
-        snap["heavy_ide"] = self._has_heavy_ide(top)
-        return snap
+        return self._build_snapshot(reset=True)

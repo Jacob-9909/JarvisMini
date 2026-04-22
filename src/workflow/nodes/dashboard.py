@@ -65,10 +65,12 @@ async def dashboard_node(ctx, node_input: InitResult) -> Event:
         lines = [f"🍽 {result['winner']}"]
         data = {**result, "history": lunch_roulette.recent_picks(user.user_id)}
     elif action == "calendar":
-        events = calendar_api.upcoming_events(hours=4)
-        title = "다가오는 일정 (4h)"
-        lines = [f"🗓 {e['summary']} — {e['start']}" for e in events] or ["일정 없음"]
-        data = {"events": events}
+        bundle = calendar_api.week_bundle()
+        events = bundle["events"]
+        wk = bundle.get("week") or {}
+        title = f"이번 주 일정 ({wk.get('start_date', '')} ~ {wk.get('end_date', '')})"
+        lines = [f"🗓 {e['summary']} — {e['start']}" for e in events] or ["이번 주 일정 없음"]
+        data = bundle
     elif action == "pet_interact":
         title = "펫 인터랙션"
         pet = Pet(species=node_input.pet.species, nickname=node_input.pet.nickname)

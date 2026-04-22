@@ -5,7 +5,6 @@ from src.agent.subagents.cafe_agent import cafe_agent
 from src.agent.subagents.lunch_agent import lunch_agent
 from src.agent.subagents.calendar_agent import calendar_agent
 from src.agent.subagents.wellness_coach import wellness_coach
-from src.agent.subagents.coding_mentor import coding_mentor
 
 ALL_SUBAGENTS = [
     bus_agent,
@@ -13,7 +12,6 @@ ALL_SUBAGENTS = [
     lunch_agent,
     calendar_agent,
     wellness_coach,
-    coding_mentor,
 ]
 
 __all__ = [
@@ -22,6 +20,5 @@ __all__ = [
     "lunch_agent",
     "calendar_agent",
     "wellness_coach",
-    "coding_mentor",
     "ALL_SUBAGENTS",
 ]

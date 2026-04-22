@@ -1,9 +1,4 @@
 """Smart Office Life Agent ORM 모델.
-
-PostgreSQL 스키마 분리:
-    - auth          : 사용자 프로필/인증
-    - agent_state   : 펫 프로필 & 활동 로그
-    - workflow      : ADK Graph 실행 히스토리 & 메모리 컨텍스트
 """
 
 from datetime import datetime

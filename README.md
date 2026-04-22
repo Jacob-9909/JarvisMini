@@ -87,7 +87,7 @@ uv run python -m src.main --mode web --user-id 1
 | 버스 / 카페 / 점심 / 캘린더 / 펫 인터랙션 | ✅ | `bus_api`·`map_api` 등은 **키 없으면 mock**; 버스는 `KAKAO_BUS_BASE_URL` 프록시 필요할 수 있음 |
 | 카페·점심 | ⚠️ | `auth.users`에 **회사 좌표**(`company_lat`/`lng`)가 있어야 의미 있음 |
 | 버스 | ⚠️ | `bus_stop_id` 등 프로필 필드 + (선택) Slack |
-| 구글 캘린더 | ⚠️ | `pip install '.[google]'` + `GOOGLE_CALENDAR_TOKEN_PATH` 없으면 mock 일정 |
+| 구글 캘린더 | ⚠️ | `GOOGLE_CALENDAR_CLIENT_SECRETS_PATH` + `uv run python -m src.tools.calendar_oauth` 로 토큰 발급 후 `GOOGLE_CALENDAR_TOKEN_PATH` 지정. 없으면 mock 일정 |
 
 ADK Web UI 로도 실행 가능:
 ```bash
