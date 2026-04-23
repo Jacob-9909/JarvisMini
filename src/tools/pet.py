@@ -186,15 +186,65 @@ DEFAULT_TALK = {
 }
 
 
+def _apply_pose(species: Species, frame: List[str], motion_step: int) -> List[str]:
+    """species 별 간단한 자세 변형(팔/표정)을 적용한다."""
+    step = motion_step % 6
+    if step in (0, 3):
+        return frame
+
+    posed = list(frame)
+
+    if species == "fox":
+        # 귀/손동작 강조
+        if step in (1, 4):
+            posed[1] = posed[1].replace("( ", "( /", 1).replace(" )", " \\)", 1)
+        elif step in (2, 5):
+            posed[3] = posed[3].replace("/", "╭", 1).replace("\\", "╮", 1)
+    elif species == "turtle":
+        if step in (1, 4):
+            posed[1] = posed[1].replace("^ ^", "^_^", 1).replace("o o", "o_o", 1)
+        elif step in (2, 5):
+            posed[2] = posed[2].replace("|", "(", 1).replace("|", ")", 1)
+    elif species == "owl":
+        if step in (1, 4):
+            posed[2] = posed[2].replace("/", "╱", 1).replace("\\", "╲", 1)
+        elif step in (2, 5):
+            posed[1] = posed[1].replace("(o,o)", "(^,^)", 1).replace("(o_o)", "(^_^)", 1)
+    elif species == "dragon":
+        if step in (1, 4):
+            posed[0] = posed[0].replace("/\\___/\\", "/\\_▲_/\\", 1)
+        elif step in (2, 5):
+            posed[2] = posed[2].replace("===", "=v=", 1)
+    elif species == "egg":
+        if step in (1, 4):
+            posed[2] = posed[2].replace("· ·", "^ ^", 1).replace("- -", "· ·", 1)
+        elif step in (2, 5):
+            posed[1] = posed[1].replace("/", "(", 1).replace("\\", ")", 1)
+
+    return posed
+
+
 @dataclass
 class Pet:
     species: Species = "egg"
     nickname: str | None = None
 
-    def frame(self, mood: Mood = "neutral") -> List[str]:
-        return FRAMES.get(self.species, FRAMES["egg"]).get(
+    def frame(self, mood: Mood = "neutral", motion_step: int | None = None) -> List[str]:
+        frame = FRAMES.get(self.species, FRAMES["egg"]).get(
             mood, FRAMES[self.species]["neutral"]
         )
+        if motion_step is None:
+            return frame
+        frame = _apply_pose(self.species, frame, motion_step)
+        # 위젯에서 주기적으로 호출될 때 좌우로 1칸씩 흔들어 살아있는 느낌을 준다.
+        shifts = (-1, 0, 1, 0)
+        shift = shifts[motion_step % len(shifts)]
+        if shift == 0:
+            return frame
+        if shift > 0:
+            return [(" " * shift) + line for line in frame]
+        cut = abs(shift)
+        return [line[cut:] if len(line) > cut else line for line in frame]
 
     def say(self, mood: Mood = "neutral", message: str | None = None) -> str:
         text = message or DEFAULT_TALK.get(mood, "")

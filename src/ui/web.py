@@ -289,7 +289,7 @@ def _create_app(default_user_id: int) -> FastAPI:
                         "exp_to_next": exp_to_next,
                         "mood": mood,
                         "stress": pet.stress if pet else 0,
-                        "frame": pet_obj.frame(mood),
+                        "frame": pet_obj.frame(mood, motion_step=int(time.time() // 2)),
                         "say": pet_obj.say(mood),
                     },
                     "activity": {
