@@ -1,7 +1,6 @@
-"""General chat fallback 에이전트.
+"""General chat fallback 서브에이전트.
 
-라우터가 분류 실패·일반 대화로 판정한 경우 응답하는 기본 Agent.
-서브에이전트(bus/cafe/lunch/...)와 동일한 콜백 체계를 쓴다.
+라우터가 일반 대화로 판정한 경우 응답한다. bus/lunch/… 와 동일한 콜백 체계.
 """
 
 from __future__ import annotations

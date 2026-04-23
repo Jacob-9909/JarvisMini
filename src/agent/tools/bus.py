@@ -50,10 +50,10 @@ async def search_bus_stations(query: str) -> Dict[str, Any]:
         query: "강남역", "12121" 처럼 이름 또는 5자리 ARS 번호.
 
     Returns:
-        {stations: [{ars_id, name, lat, lng, ...}]}
+        {stations: [{ars_id, name, lat, lng, ...}], hint}
     """
-    stations = await bus_api.search_stations(query)
-    return {"stations": stations}
+    stations, hint = await bus_api.search_stations(query)
+    return {"stations": stations, "hint": hint}
 
 
 bus_arrival_tool = FunctionTool(get_bus_arrival)

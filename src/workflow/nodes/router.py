@@ -13,7 +13,7 @@ def router_node(ctx, node_input: InitResult) -> Event:
     action = (node_input.action or "status").lower()
 
     system_actions = {"monitor", "sample"}
-    dashboard_actions = {"status", "bus", "cafe", "lunch_roulette", "calendar", "pet_interact"}
+    dashboard_actions = {"status", "bus", "directions", "lunch_roulette", "calendar", "pet_interact"}
 
     if action in system_actions:
         route = "system_monitor_node"

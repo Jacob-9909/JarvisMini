@@ -42,7 +42,7 @@ async def _run(user_id: int, action: str) -> None:
 async def main() -> None:
     init_db()
     user_id = seed_test_user()
-    for action in ("status", "monitor", "bus", "cafe", "lunch_roulette", "calendar", "pet_interact"):
+    for action in ("status", "monitor", "bus", "directions", "lunch_roulette", "calendar", "pet_interact"):
         await _run(user_id, action)
 
 

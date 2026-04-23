@@ -1,8 +1,8 @@
-"""Intent router — LLM 분류기 + JSON 파싱 + lunch intent 보정.
+"""Minimal router — decide + HITL finalize.
 
-실상은 ADK Agent 가 아니라 **분류기 LLM 한 번 호출**이다. output_schema 가 특정
-google-adk/Gemini 조합에서 실패하는 버그가 있어, JSON 한 줄로 받아
-``_extract_route_decision`` 에서 파싱한다. 파싱/예외 시 general_chat_agent 로 폴백.
+직접 ``google.genai`` 를 호출해 JSON 하나만 받는다. ADK ``Runner`` 없이 LLM
+인보케이션이 신뢰 가능하도록 하기 위함. 또한 흔한 도메인 키워드는 LLM 호출
+없이 바로 라우트를 선택하는 fast-path 를 둔다.
 """
 
 from __future__ import annotations
@@ -10,230 +10,310 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 from typing import Any, Literal, Optional, get_args
 
 from google.adk import Event
-from google.adk.agents import Agent
-from pydantic import BaseModel, Field, ValidationError
+from google.adk.events import RequestInput
+from pydantic import BaseModel
 
 from src.schema.chat import ChatRouteInput
 
 logger = logging.getLogger(__name__)
-
 MODEL = os.getenv("MODEL", "gemini-2.5-flash")
 
 RouteName = Literal[
     "bus_agent",
-    "cafe_agent",
     "lunch_agent",
     "calendar_agent",
     "wellness_coach",
+    "navigation_agent",
     "general_chat_agent",
 ]
 VALID_ROUTES: frozenset[str] = frozenset(get_args(RouteName))
 
-
-class RouteDecision(BaseModel):
-    """라우터 LLM 의 출력 스키마."""
-
-    route: RouteName = Field(description="가장 적합한 에이전트 이름")
-    reason: str = Field(default="", description="선택 근거 한 줄(디버깅용)")
-
-
-ROUTER_INSTRUCTION = """사용자 발화와 직전 대화 맥락을 반영해 가장 적합한 에이전트를 하나 고른다.
-
-에이전트:
-- bus_agent: 버스 도착 시간, 노선 정보, 정류소 검색
-- cafe_agent: 주변 카페·맛집·식당 정보
-- lunch_agent: 점심/저녁 **메뉴 정하기**, 제비·사다리·룰렛 추첨, "뭐 먹지" 류
-- calendar_agent: 개인 일정·회의·캘린더
-- wellness_coach: 피로·휴식·번아웃·스트레칭·집중 — **식단·메뉴 추천은 담당하지 않는다**
-- general_chat_agent: 인사·잡담, 위 목록에 없는 일반적인 대화
-
-우선 규칙: "점심/저녁 메뉴", "뭐 먹지", "메뉴 추천", 룰렛·제비 등은 **반드시 lunch_agent**. 펫 스트레스가 높아 보여도 식사 선택 질문이면 lunch_agent.
-
-응답 형식 (매우 중요):
-- **설명 문장 없이** JSON 객체 **한 개만** 출력한다.
-- 키는 정확히 `"route"`, `"reason"` 두 개. `route` 값은 아래 문자열 중 하나와 **완전히 동일**해야 한다.
-  bus_agent, cafe_agent, lunch_agent, calendar_agent, wellness_coach, general_chat_agent
-- 예: {"route":"lunch_agent","reason":"점심 메뉴 추천 요청"}
-"""
-
-router_agent = Agent(
-    name="router_agent",
-    model=MODEL,
-    instruction=ROUTER_INSTRUCTION,
+# router_finalize / 짧은 긍정(점심 HITL 후속) 공통
+_POSITIVE_TOKENS = frozenset(
+    {
+        "",
+        "ok",
+        "okay",
+        "yes",
+        "y",
+        "예",
+        "네",
+        "응",
+        "어",
+        "ㅇㅇ",
+        "그래",
+        "맞아",
+        "맞음",
+        "수락",
+        "수락함",
+        "accept",
+        "confirm",
+        "좋아",
+        "좋음",
+    }
 )
 
 
-# ---------------------------------------------------------------------------
-# Lunch intent 보정 — LLM 이 세션 스트레스 맥락만 보고 wellness/general 로 오분류하는
-# 경우가 있어, 식사 선택 질문을 키워드 기반으로 재라우팅한다.
-# ---------------------------------------------------------------------------
-def _looks_like_lunch_intent(message: str) -> bool:
-    s = (message or "").strip()
-    if not s:
-        return False
-    low = s.lower()
-    if any(k in low for k in ("lunch roulette", "lunch menu", "what should i eat")):
-        return True
-    if "점메추" in s or "저메추" in s:
-        return True
-    if "메뉴" in s and any(x in s for x in ("추천", "뽑", "룰렛", "제비", "사다리")):
-        return True
-    if "뭐" in s and "먹" in s:
-        return True
-    if "점심" in s and any(x in s for x in ("추천", "메뉴", "뭐", "룰렛", "제비", "사다리")):
-        return True
-    if "저녁" in s and any(x in s for x in ("메뉴", "추천", "뭐", "룰렛")):
-        return True
-    return False
+class RouteDecision(BaseModel):
+    route: RouteName
+
+
+class HitlDecision(BaseModel):
+    final_route: RouteName
 
 
 # ---------------------------------------------------------------------------
-# LLM 응답에서 RouteDecision 추출
+# Keyword fast-path — LLM 실패/지연 없이 명백한 의도를 즉시 라우팅.
 # ---------------------------------------------------------------------------
-def _coerce_router_json_blob(raw: str) -> Optional[dict]:
-    """LLM 응답 문자열에서 dict 하나를 최대한 뽑아낸다 (```json``` 블록·본문 내 {...} 등)."""
-    text = (raw or "").strip()
+_NAV_KEYWORDS = (
+    "지하철", "전철", "대중교통", "길찾기", "길 찾", "경로",
+    "도보", "차로", "자동차", "환승", "몇 정거장",
+)
+_NAV_STATION_RE = re.compile(r"[가-힣A-Za-z0-9]+역")  # 'ㅇㅇ역'
+_BUS_KEYWORDS = ("버스", "정류장", "도착 정보", "몇 분", "언제 와", "배차")
+_LUNCH_KEYWORDS = ("점심", "메뉴", "뭐 먹", "뭐먹", "룰렛", "사다리")
+_CALENDAR_KEYWORDS = ("일정", "미팅", "스케줄", "캘린더", "회의", "약속", "이번 주", "오늘 일정")
+_WELLNESS_KEYWORDS = ("피곤", "지쳐", "쉬고", "휴식", "스트레스", "졸려", "힘들")
+
+
+def _keyword_route(message: str) -> Optional[str]:
+    if not message:
+        return None
+    low = message.lower()
+    # 역명이 2개 이상 또는 교통 키워드 포함 → navigation
+    stations = _NAV_STATION_RE.findall(message)
+    if len(stations) >= 1 and any(k in message for k in _NAV_KEYWORDS):
+        return "navigation_agent"
+    if len(stations) >= 2:
+        return "navigation_agent"
+    if any(k in message for k in _NAV_KEYWORDS):
+        return "navigation_agent"
+    if any(k in message for k in _BUS_KEYWORDS):
+        return "bus_agent"
+    if any(k in message for k in _LUNCH_KEYWORDS):
+        return "lunch_agent"
+    if any(k in message for k in _CALENDAR_KEYWORDS):
+        return "calendar_agent"
+    if any(k in low for k in _WELLNESS_KEYWORDS):
+        return "wellness_coach"
+    return None
+
+
+# ---------------------------------------------------------------------------
+# genai direct call
+# ---------------------------------------------------------------------------
+_ROUTE_SYSTEM = """사용자 발화를 보고 라우트 하나를 고른다.
+출력은 **JSON 객체 하나만**, 코드펜스/설명 금지:
+{"route":"<bus_agent|lunch_agent|calendar_agent|wellness_coach|navigation_agent|general_chat_agent>"}
+
+- bus_agent: 버스 도착/노선/정류장
+- lunch_agent: 점심 메뉴/추첨
+- calendar_agent: 일정/미팅/캘린더
+- wellness_coach: 피로/휴식/스트레스 조언
+- navigation_agent: 길찾기·경로·역↔역·지하철·전철·대중교통·도보·차로
+- general_chat_agent: 위 어디에도 해당 안 되는 잡담
+"""
+
+_HITL_SYSTEM = """HITL 재분류. 입력 JSON 을 보고 최종 라우트 하나를 고른다.
+user_reply 가 긍정('네','ok','수락','그래' 등)이면 guessed_route 를 그대로 쓴다.
+반대/다른 의도면 original_message+user_reply 로 재분류.
+
+출력은 **JSON 객체 하나만**, 코드펜스/설명 금지:
+{"final_route":"<bus_agent|lunch_agent|calendar_agent|wellness_coach|navigation_agent|general_chat_agent>"}
+"""
+
+
+_JSON_OBJ_RE = re.compile(r"\{[^{}]*\}", re.DOTALL)
+
+
+def _extract_json_obj(text: str) -> Optional[dict]:
     if not text:
         return None
-    if text.startswith("```"):
-        lines = text.split("\n")
-        if lines and lines[0].lstrip().startswith("```"):
-            lines = lines[1:]
-        if lines and lines[-1].strip().startswith("```"):
-            lines = lines[:-1]
-        text = "\n".join(lines).strip()
+    s = text.strip()
+    if s.startswith("```"):
+        s = re.sub(r"^```(?:json)?\s*", "", s)
+        s = re.sub(r"\s*```\s*$", "", s)
     try:
-        data = json.loads(text)
-        return data if isinstance(data, dict) else None
-    except json.JSONDecodeError:
+        obj = json.loads(s)
+        return obj if isinstance(obj, dict) else None
+    except Exception:
         pass
-    i0, i1 = text.find("{"), text.rfind("}")
-    if i0 != -1 and i1 > i0:
+    for m in _JSON_OBJ_RE.finditer(s):
         try:
-            data = json.loads(text[i0 : i1 + 1])
-            return data if isinstance(data, dict) else None
-        except json.JSONDecodeError:
-            return None
+            obj = json.loads(m.group(0))
+            if isinstance(obj, dict):
+                return obj
+        except Exception:
+            continue
     return None
 
 
-def _extract_route_decision(event: Any) -> Optional[RouteDecision]:
-    # 1) event.output 이 dict / str 로 내려오는 경우
-    out = getattr(event, "output", None)
-    if isinstance(out, dict) and "route" in out:
-        try:
-            return RouteDecision.model_validate(out)
-        except ValidationError:
-            pass
-    if isinstance(out, str):
-        data = _coerce_router_json_blob(out)
-        if data and "route" in data:
-            try:
-                return RouteDecision.model_validate(data)
-            except ValidationError:
-                pass
-
-    # 2) content.parts[].text 에 JSON 문자열이 들어있는 경우 (Gemini 기본 동작)
-    content = getattr(event, "content", None)
-    if content and getattr(content, "parts", None):
-        text = "".join(
-            (getattr(p, "text", "") or "") for p in content.parts
-        ).strip()
-        data = _coerce_router_json_blob(text)
-        if data and "route" in data:
-            try:
-                return RouteDecision.model_validate(data)
-            except ValidationError:
-                return None
-    return None
+_genai_client = None
 
 
-# ---------------------------------------------------------------------------
-# Router node
-# ---------------------------------------------------------------------------
-async def _invoke_router(ctx) -> Optional[RouteDecision]:
-    """라우터 LLM 호출 → RouteDecision. 실패 시 None.
+def _get_genai_client():
+    global _genai_client
+    if _genai_client is not None:
+        return _genai_client
+    try:
+        from google import genai
 
-    ``Agent.run_async`` 의 첫 인자는 사용자 문장(str) 이 아니라
-    ``InvocationContext`` 다. 문자열을 넘기면 ``'str' object has no attribute
-    'model_copy'`` 로 라우팅이 항상 실패한다.
+        _genai_client = genai.Client()
+    except Exception:
+        logger.exception("failed to init genai client")
+        _genai_client = None
+    return _genai_client
+
+
+async def _llm_json(system: str, user: str, schema_cls: type[BaseModel], key: str) -> Optional[BaseModel]:
+    """genai 로 JSON 한 번 뽑아 ``schema_cls`` 로 검증.
+
+    ``response_mime_type=application/json`` + ``response_schema`` 로 구조 강제.
+    실패 시 텍스트에서 수동 추출 시도.
     """
+    client = _get_genai_client()
+    if client is None:
+        return None
     try:
-        inv = ctx.get_invocation_context()
-    except Exception as e:
-        logger.warning("router_node: get_invocation_context failed: %s", e)
+        from google.genai import types as genai_types
+
+        config = genai_types.GenerateContentConfig(
+            system_instruction=system,
+            response_mime_type="application/json",
+            response_schema=schema_cls,
+            temperature=0,
+        )
+        resp = await client.aio.models.generate_content(
+            model=MODEL,
+            contents=user,
+            config=config,
+        )
+    except Exception:
+        logger.exception("genai generate_content failed")
         return None
 
-    decision: Optional[RouteDecision] = None
-    try:
-        async for event in router_agent.run_async(inv):
-            parsed = _extract_route_decision(event)
-            if parsed is not None:
-                decision = parsed
-    except Exception as e:
-        logger.warning("router_agent.run_async failed: %s", e)
-    return decision
+    parsed = getattr(resp, "parsed", None)
+    if isinstance(parsed, schema_cls):
+        return parsed
 
-
-def _apply_lunch_override(
-    decision: Optional[RouteDecision], message: str
-) -> Optional[RouteDecision]:
-    """식사 의도면 wellness/general 판정을 lunch_agent 로 교정."""
-    if decision is None:
+    text = getattr(resp, "text", None) or ""
+    obj = _extract_json_obj(text)
+    if obj is None or key not in obj:
+        logger.warning("llm_json no key %r in text=%r parsed=%r", key, text[:200], parsed)
         return None
-    if decision.route not in ("wellness_coach", "general_chat_agent"):
-        return decision
-    if not _looks_like_lunch_intent(message):
-        return decision
-    prev = decision.route
-    return RouteDecision(route="lunch_agent", reason=f"override(lunch-intent;was={prev})")
+    try:
+        return schema_cls.model_validate(obj)
+    except Exception:
+        logger.warning("llm_json validate failed: %r", obj)
+        return None
 
 
-def _resolve_route(decision: Optional[RouteDecision]) -> tuple[str, str]:
-    """최종 route 이름과 로그용 reason."""
-    if decision is None:
-        return "general_chat_agent", "fallback(no_decision)"
-    if decision.route not in VALID_ROUTES:
-        logger.warning("unknown route %r from router, fallback to general", decision.route)
-        return "general_chat_agent", f"fallback(unknown:{decision.route})"
-    return decision.route, decision.reason or "llm"
-
-
-async def router_node(ctx, node_input: ChatRouteInput) -> Event:
-    """라우터 전용 LLM 한 번 호출 → route 결정. 실패 시 general_chat_agent."""
-    decision = await _invoke_router(ctx)
-    decision = _apply_lunch_override(decision, node_input.message)
-    target_route, reason = _resolve_route(decision)
-
-    logger.info(
-        "[router] msg=%r → %s (%s)",
-        (node_input.message or "")[:80],
-        target_route,
-        reason,
+# ---------------------------------------------------------------------------
+# Nodes
+# ---------------------------------------------------------------------------
+def _coerce_user_id_message(node_input: Any) -> tuple[int, str]:
+    """init_node 의 ChatRouteInput / dict / HITL resume str 모두에서 user_id/message 추출."""
+    if node_input is None:
+        return 0, ""
+    if isinstance(node_input, ChatRouteInput):
+        return int(node_input.user_id or 0), str(node_input.message or "")
+    if isinstance(node_input, dict):
+        uid = node_input.get("user_id") or 0
+        msg = node_input.get("message")
+        if msg is None:
+            msg = node_input.get("response") or node_input.get("result") or ""
+        try:
+            return int(uid or 0), str(msg or "")
+        except Exception:
+            return 0, str(msg or "")
+    if isinstance(node_input, str):
+        return 0, node_input
+    return int(getattr(node_input, "user_id", 0) or 0), str(
+        getattr(node_input, "message", "") or ""
     )
 
-    routed_input = ChatRouteInput(
-        user_id=node_input.user_id,
-        message=node_input.message,
-        route=target_route,
+
+async def router_decide_node(ctx, node_input: Any):
+    user_id, message = _coerce_user_id_message(node_input)
+
+    kw_route = _keyword_route(message)
+    if kw_route:
+        target_route = kw_route
+        logger.info("[router/kw] msg=%r → %s", message[:60], target_route)
+    else:
+        decision = await _llm_json(_ROUTE_SYSTEM, message, RouteDecision, "route")
+        target_route = getattr(decision, "route", None)
+        logger.info("[router/llm] msg=%r → %s", message[:60], target_route)
+        if target_route not in VALID_ROUTES:
+            target_route = "general_chat_agent"
+
+    yield Event(
+        state={
+            "user_id": user_id,
+            "router_candidate_route": target_route,
+            "router_original_message": message,
+        }
     )
-    return Event(
+    # 키워드로 라우트가 확정이면 라우터 HITL 생략
+    if kw_route is None:
+        yield RequestInput(
+            message=(
+                "의도 분류 결과 확인.\n"
+                f"현재 추정 route: `{target_route}`\n"
+                "맞으면 수락, 아니면 원하는 의도를 자유롭게 입력"
+            ),
+        )
+
+
+async def router_finalize_node(ctx, node_input: Any):
+    # HITL resume 시 node_input 은 raw str("길찾기"), 또는 {"response": ...} dict.
+    user_id, user_reply = _coerce_user_id_message(node_input)
+    if not user_id:
+        try:
+            user_id = int(ctx.state.get("user_id") or 0)
+        except Exception:
+            user_id = 0
+
+    original_message = str(ctx.state.get("router_original_message") or user_reply)
+    guessed_route = str(ctx.state.get("router_candidate_route") or "general_chat_agent")
+
+    stripped = (user_reply or "").strip().lower()
+    if stripped in _POSITIVE_TOKENS and guessed_route in VALID_ROUTES:
+        target_route = guessed_route
+        logger.info("[router/finalize/pos] guess=%s", guessed_route)
+    else:
+        # user_reply 에서 키워드 룰 먼저 시도
+        kw = _keyword_route(user_reply) or _keyword_route(original_message)
+        if kw:
+            target_route = kw
+            logger.info("[router/finalize/kw] reply=%r → %s", user_reply[:40], target_route)
+        else:
+            prompt = (
+                f'{{"original_message": {json.dumps(original_message, ensure_ascii=False)},'
+                f' "guessed_route": "{guessed_route}",'
+                f' "user_reply": {json.dumps(user_reply, ensure_ascii=False)}}}'
+            )
+            hitl = await _llm_json(_HITL_SYSTEM, prompt, HitlDecision, "final_route")
+            target_route = getattr(hitl, "final_route", None)
+            if target_route not in VALID_ROUTES:
+                target_route = guessed_route if guessed_route in VALID_ROUTES else "general_chat_agent"
+            logger.info("[router/finalize/llm] reply=%r guess=%s → %s", user_reply[:40], guessed_route, target_route)
+
+    yield Event(
         route=[target_route],
-        output=routed_input,
+        output=ChatRouteInput(user_id=user_id, message=original_message, route=target_route),
         state={
             "current_route": target_route,
-            "user_id": node_input.user_id,
-            "original_message": node_input.message,
+            "user_id": user_id,
+            "original_message": original_message,
+            "router_candidate_route": "",
+            "router_original_message": "",
         },
     )
 
 
-__all__ = [
-    "RouteName",
-    "RouteDecision",
-    "router_agent",
-    "router_node",
-]
+__all__ = ["router_decide_node", "router_finalize_node", "_keyword_route"]

@@ -55,13 +55,28 @@ def init_node(ctx, node_input: ChatWorkflowInput | dict | None = None) -> Event:
 # ---------------------------------------------------------------------------
 _DOMAIN_PET_POLICY: Dict[str, Dict[str, int]] = {
     "bus_agent":         {"exp": 2, "stress": -10},
-    "cafe_agent":        {"exp": 2, "stress": -1},
     "lunch_agent":       {"exp": 3, "stress": -5},
     "calendar_agent":    {"exp": 1, "stress": 5},
     "wellness_coach":    {"exp": 1, "stress": -3},
+    "navigation_agent":  {"exp": 2, "stress": -2},
     "general_chat_agent": {"exp": 0, "stress": 0},
 }
 _DEFAULT_POLICY = {"exp": 0, "stress": 0}
+
+# HITL 결과에 따른 오버라이드. 사용자 "확정" 시 더 큰 보상을 주고,
+# 취소는 보상 없음, 재추첨은 중간값으로 조정한다.
+_LUNCH_HITL_POLICY: Dict[str, Dict[str, int]] = {
+    "accepted":  {"exp": 5, "stress": -30},
+    "rerolled":  {"exp": 2, "stress": -10},
+    "cancelled": {"exp": 0, "stress": 0},
+}
+# 알림을 걸면 다가오는 일정 인지로 stress 약간 증가, EXP 소폭 +.
+# 조회만 해도 기본 보상, 일정 없을 땐 stress 미세 감소(여유).
+_CALENDAR_HITL_POLICY: Dict[str, Dict[str, int]] = {
+    "reminder_on":  {"exp": 2, "stress": 3},
+    "reminder_off": {"exp": 1, "stress": 5},
+    "no_events":    {"exp": 1, "stress": -2},
+}
 
 
 def _read_route_state(ctx) -> tuple[str, int, str]:
@@ -75,8 +90,29 @@ def _read_route_state(ctx) -> tuple[str, int, str]:
         return "general_chat_agent", 0, ""
 
 
+def _hitl_status(ctx, key: str) -> str | None:
+    try:
+        value = ctx.state.get(key)
+    except Exception:
+        return None
+    return str(value) if value else None
+
+
+def _apply_hitl_override(route: str, base: Dict[str, int], ctx) -> Dict[str, int]:
+    """라우트별 HITL 플래그를 읽어 보상 정책을 오버라이드."""
+    if route == "lunch_agent":
+        status = _hitl_status(ctx, "pending_lunch_status")
+        if status and status in _LUNCH_HITL_POLICY:
+            return _LUNCH_HITL_POLICY[status]
+    elif route == "calendar_agent":
+        status = _hitl_status(ctx, "pending_calendar_status")
+        if status and status in _CALENDAR_HITL_POLICY:
+            return _CALENDAR_HITL_POLICY[status]
+    return base
+
+
 def post_process_node(ctx, node_input: Any) -> Event:
-    """서브에이전트 응답 + 라우트 정보 + 정책값을 AgentOutput 으로 묶는다."""
+    """서브에이전트/HITL 응답 + 라우트 정보 + 정책값을 AgentOutput 으로 묶는다."""
     # 서브에이전트 output_key = "response"
     if isinstance(node_input, dict):
         agent_response = node_input.get("response", str(node_input))
@@ -84,7 +120,8 @@ def post_process_node(ctx, node_input: Any) -> Event:
         agent_response = str(node_input)
 
     route, user_id, original_message = _read_route_state(ctx)
-    policy = _DOMAIN_PET_POLICY.get(route, _DEFAULT_POLICY)
+    base_policy = _DOMAIN_PET_POLICY.get(route, _DEFAULT_POLICY)
+    policy = _apply_hitl_override(route, base_policy, ctx)
 
     return Event(
         output=AgentOutput(

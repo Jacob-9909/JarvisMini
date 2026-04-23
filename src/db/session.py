@@ -66,11 +66,3 @@ def init_db() -> None:
     Base.metadata.create_all(bind=engine)
     _ensure_trgm_index()
     logger.info("DB initialized (schemas: %s)", ", ".join(SCHEMAS))
-
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()

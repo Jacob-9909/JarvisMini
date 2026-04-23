@@ -5,7 +5,7 @@ ADK 2.0 Graph Workflow 에서 노드 간 전달/저장되는 컨텍스트 정의
 
 from __future__ import annotations
 
-from typing import List, Dict, Any, Optional, Literal, TypedDict
+from typing import List, Dict, Any, Optional, Literal
 from datetime import datetime
 from pydantic import BaseModel, Field
 
@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 PetSpecies = Literal["fox", "turtle", "owl", "dragon", "egg"]
 PetMood = Literal["happy", "neutral", "tired", "stressed", "focused"]
 DashboardAction = Literal[
-    "status", "bus", "cafe", "lunch_roulette", "calendar", "pet_interact", "noop"
+    "status", "bus", "directions", "lunch_roulette", "calendar", "pet_interact", "noop"
 ]
 
 
@@ -52,12 +52,6 @@ class SystemSnapshot(BaseModel):
     screen_active_sec: int = 0
 
 
-class DashboardRequest(BaseModel):
-    user_id: int
-    action: DashboardAction = "status"
-    payload: Dict[str, Any] = Field(default_factory=dict)
-
-
 class DashboardResult(BaseModel):
     user_id: int
     action: DashboardAction
@@ -74,12 +68,3 @@ class PetCareResult(BaseModel):
     leveled_up: bool = False
     evolved_to: Optional[PetSpecies] = None
     message: Optional[str] = None
-
-
-class AgentState(TypedDict, total=False):
-    user: UserContext
-    pet: PetStatus
-    snapshot: SystemSnapshot
-    last_dashboard: Optional[DashboardResult]
-    last_care: Optional[PetCareResult]
-    error_msg: Optional[str]

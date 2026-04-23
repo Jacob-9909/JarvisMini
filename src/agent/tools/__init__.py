@@ -12,16 +12,17 @@
 
 from src.agent.tools.ask import ask_user_tool
 from src.agent.tools.bus import bus_arrival_tool, bus_search_tool
-from src.agent.tools.cafe import cafe_tool
 from src.agent.tools.calendar import calendar_tool
 from src.agent.tools.diagnostics import activity_tool, pet_status_tool, profile_tool
 from src.agent.tools.lunch import lunch_tool
+from src.agent.tools.navigation import navigation_tool, subway_route_tool
 
 __all__ = [
     "bus_arrival_tool",
     "bus_search_tool",
-    "cafe_tool",
     "lunch_tool",
+    "navigation_tool",
+    "subway_route_tool",
     "calendar_tool",
     "pet_status_tool",
     "activity_tool",

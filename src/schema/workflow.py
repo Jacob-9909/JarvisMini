@@ -20,12 +20,6 @@ class InitResult(BaseModel):
     payload: Dict[str, Any] = Field(default_factory=dict)
 
 
-class MonitorResult(BaseModel):
-    """모니터링 노드 결과."""
-    user_id: int
-    snapshot: SystemSnapshot
-
-
 class StateBundle(BaseModel):
     """워크플로우 전반에서 전달되는 상태 묶음."""
     user: UserContext

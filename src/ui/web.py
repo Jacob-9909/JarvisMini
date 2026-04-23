@@ -9,7 +9,7 @@
 REST:
     GET  /                 — 위젯 HTML
     GET  /api/state        — 사용자/펫/활동 + **실시간** CPU·RAM
-    POST /api/action       — {"action": "bus|cafe|..."} 를 Graph Workflow 로 전달
+    POST /api/action       — {"action": "bus|directions|..."} 를 Graph Workflow 로 전달
 """
 
 from __future__ import annotations
@@ -30,7 +30,6 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel, Field
 
 from src.db.session import SessionLocal
 from src.db.models import User, PetProfile, ActivityLog
@@ -85,10 +84,11 @@ def _event_to_sse(event: Any) -> Optional[Dict[str, Any]]:
                 # RequestInput(HITL) 은 function_call 로 포장되어 나오므로 별도 이벤트로 분기.
                 if fc.name == REQUEST_INPUT_FC_NAME:
                     args = dict(getattr(fc, "args", {}) or {})
+                    iid = getattr(fc, "id", None) or args.get("interrupt_id")
                     return {
                         "type": "interrupt",
                         "author": author,
-                        "interrupt_id": getattr(fc, "id", None),
+                        "interrupt_id": iid,
                         "message": args.get("message", ""),
                         "response_schema": args.get("response_schema"),
                     }
@@ -233,8 +233,7 @@ def _create_app(default_user_id: int) -> FastAPI:
             {
                 "request": request,
                 "user_id": default_user_id,
-                "google_maps_api_key": os.getenv("GOOGLE_MAPS_API_KEY", ""),
-                "google_maps_map_id": os.getenv("GOOGLE_MAPS_MAP_ID", ""),
+                "kakao_maps_js_app_key": os.getenv("KAKAO_MAPS_JAVASCRIPT_APP_KEY", ""),
             },
         )
 
@@ -413,8 +412,23 @@ def _create_app(default_user_id: int) -> FastAPI:
 
         chat_runner = app.state.chat_runner
         raw_sid = (body.session_id or "").strip()
-        session_id = raw_sid if raw_sid else uuid.uuid4().hex
         is_resume = body.function_response is not None
+        if is_resume and not raw_sid:
+            # 세션 없이 재개하면 Runner 가 빈 세션으로 돌아가 점심 HITL 등이 끊긴다.
+            async def _resume_err():
+                err = {
+                    "type": "error",
+                    "message": (
+                        "확인 단계(HITL)를 이어하려면 대화 session_id 가 필요해요. "
+                        "대화 탭을 한 번 나갔다 들어오거나, 점심을 처음부터 다시 요청해 주세요."
+                    ),
+                }
+                yield f"event: error\ndata: {_json.dumps(err, ensure_ascii=False)}\n\n"
+                yield "event: done\ndata: {}\n\n"
+
+            return StreamingResponse(_resume_err(), media_type="text/event-stream")
+
+        session_id = raw_sid if raw_sid else uuid.uuid4().hex
 
         async def _stream():
             yield f"event: session\ndata: {_json.dumps({'session_id': session_id})}\n\n"
@@ -619,6 +633,22 @@ def run_desktop(
 
     url = f"http://{host}:{port}/"
     logger.info("Opening desktop window → %s", url)
+
+    class _DesktopApi:
+        """widget.html → pywebview.api.open_external(url) 로 외부 링크 열기."""
+
+        def open_external(self, target_url: str) -> bool:
+            if not target_url or not isinstance(target_url, str):
+                return False
+            if not target_url.lower().startswith(("http://", "https://")):
+                return False
+            try:
+                webbrowser.open(target_url, new=2)
+                return True
+            except Exception:
+                logger.exception("open_external failed: %s", target_url)
+                return False
+
     webview.create_window(
         title=title,
         url=url,
@@ -627,10 +657,11 @@ def run_desktop(
         resizable=True,
         frameless=frameless,
         # True면 본문 아무 곳이나 잡아도 창이 움직여 UI 조작이 불편함.
-        # 창 이동은 HTML 타이틀바의 -webkit-app-region: drag 만 사용한다.
+        # 창 이동은 HTML titlebar 의 data-pywebview-drag-region 만 사용한다.
         easy_drag=False,
         on_top=on_top,
         background_color="#0f111a",
+        js_api=_DesktopApi(),
     )
 
     debug = os.getenv("DESKTOP_DEBUG", "").lower() in ("1", "true", "yes")

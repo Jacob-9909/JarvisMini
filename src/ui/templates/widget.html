@@ -278,13 +278,13 @@
         min-height: 0;
         display: flex;
         flex-direction: column;
-        padding: 10px 12px 12px;
+        padding: 8px 10px 10px;
         overflow: hidden;
       }
       .result-header {
         font-size: 10px;
         color: var(--muted);
-        margin-bottom: 8px;
+        margin-bottom: 6px;
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -292,16 +292,25 @@
       }
       .result-header strong {
         color: var(--fg-strong);
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 600;
         letter-spacing: -0.01em;
       }
       .result-body {
         flex: 1;
         overflow-y: auto;
-        font-size: 11.5px;
-        line-height: 1.5;
+        font-size: 11px;
+        line-height: 1.42;
         color: var(--fg-soft);
+        scrollbar-gutter: stable;
+      }
+      /* 대화 탭: 바깥(result-body) 스크롤 끄고 chat-log 한 곳만 스크롤 */
+      .result-body.result-body--chat {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        overflow: hidden;
+        scrollbar-gutter: auto;
       }
       .result-body ul { list-style: none; padding: 0; margin: 0; }
       .result-body li {
@@ -318,56 +327,56 @@
 
       /* ===== 패널 탭(대화 제외): 400×560 위젯에 맞춘 간격 ===== */
       #widget.widget--panel-mode .hero {
-        min-height: 138px;
-        padding: 9px 10px 11px;
-        gap: 8px;
+        min-height: 176px;
+        padding: 12px 14px 14px;
+        gap: 12px;
       }
       #widget.widget--panel-mode .status-board {
-        font-size: 10.5px;
-        gap: 5px;
-        padding: 2px 0;
+        font-size: 11px;
+        gap: 7px;
+        padding: 2px 2px 2px 0;
       }
       #widget.widget--panel-mode .status-board h3 {
         margin-bottom: 2px;
         font-size: 9px;
       }
       #widget.widget--panel-mode .pet-column {
-        padding: 8px 6px 10px;
+        padding: 12px 10px 14px;
         border-radius: 8px;
       }
       #widget.widget--panel-mode .pet-frame {
-        font-size: 9.5px;
+        font-size: 10.5px;
       }
       #widget.widget--panel-mode .pet-say {
-        font-size: 10px;
-        margin-top: 5px;
+        font-size: 10.5px;
+        margin-top: 7px;
       }
       #widget.widget--panel-mode .actions {
-        padding: 4px 8px 5px;
-        gap: 3px;
+        padding: 8px 10px 10px;
+        gap: 4px;
       }
       #widget.widget--panel-mode .actions button {
-        padding: 4px 0;
-        font-size: 9.5px;
-        border-radius: 5px;
+        padding: 6px 0 7px;
+        font-size: 10.5px;
+        border-radius: var(--r-sm);
       }
       #widget.widget--panel-mode .actions .k {
-        font-size: 7.5px;
+        font-size: 8px;
       }
 
       #result.result--compact {
-        padding: 5px 8px 6px;
+        padding: 8px 10px 10px;
       }
       #result.result--compact .result-header {
-        margin-bottom: 4px;
-        font-size: 9.5px;
+        margin-bottom: 6px;
+        font-size: 10px;
       }
       #result.result--compact .result-header strong {
-        font-size: 10.5px;
+        font-size: 11px;
       }
       #result.result--compact .result-body {
-        font-size: 10.5px;
-        line-height: 1.34;
+        font-size: 11px;
+        line-height: 1.42;
       }
       #result.result--compact .result-body > ul > li {
         padding: 3px 0;
@@ -400,11 +409,6 @@
         padding: 3px 0;
         gap: 6px;
         font-size: 10.5px;
-      }
-      #result.result--compact .cafe-map {
-        height: 142px;
-        margin-bottom: 6px;
-        border-radius: 7px;
       }
       #result.result--compact .week-cal-col {
         min-height: 60px;
@@ -469,7 +473,7 @@
         font-size: 11px;
       }
 
-      /* Pane: 공통 hero / list / pill (버스·카페·점심·일정) */
+      /* Pane: 공통 hero / list / pill (버스·길찾기·점심·일정) */
       .pane-hero {
         background: linear-gradient(180deg, var(--panel-2), var(--panel));
         border: 1px solid var(--border);
@@ -592,53 +596,150 @@
         font-weight: 600;
       }
 
-      /* ===== Cafe map ===== */
-      .cafe-map {
-        position: relative;
-        width: 100%;
-        height: 200px;
-        border-radius: var(--r-md);
-        overflow: hidden;
-        margin-bottom: 10px;
-        background: var(--bg-sunken);
-        border: 1px solid var(--border);
-        box-shadow: var(--shadow-sm);
-      }
-      .cafe-map > div { width: 100%; height: 100%; }
-      .cafe-map .cafe-map-hint {
-        position: absolute;
-        inset: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-        padding: 10px;
-        color: var(--muted);
-        font-size: 11px;
-        pointer-events: none;
-      }
       .pane-list li.is-active {
         background: var(--accent-soft);
         border-radius: var(--r-xs);
       }
-      .pane-list li[data-cafe-idx] {
-        cursor: pointer;
-        transition: background 0.12s var(--ease-out);
+      .directions-box {
+        background: linear-gradient(180deg, var(--panel-2), var(--panel));
+        border: 1px solid var(--border);
+        border-radius: var(--r-lg);
+        padding: 10px 12px;
+        box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.03);
       }
-      .pane-list li[data-cafe-idx]:hover { background: var(--surface-hover); }
+      .directions-box .dir-title {
+        font-size: 9px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        font-weight: 600;
+        margin-bottom: 8px;
+      }
+      .directions-box .dir-fields {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        gap: 6px;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+      .directions-box .dir-fields input[type="text"] {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 9px 11px;
+        border-radius: var(--r-md);
+        border: 1px solid var(--border);
+        background: var(--panel);
+        color: var(--fg-strong);
+        font-size: 12px;
+        transition: border-color .15s, box-shadow .15s;
+      }
+      .directions-box .dir-fields input[type="text"]:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px var(--accent-ring);
+      }
+      .directions-box .dir-arrow {
+        font-size: 14px;
+        color: var(--muted);
+        padding: 0 2px;
+        user-select: none;
+      }
+      .directions-box .dir-region {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 10px;
+        color: var(--muted);
+        margin-bottom: 8px;
+      }
+      .directions-box .dir-region select {
+        flex: 1;
+        padding: 7px 9px;
+        border-radius: var(--r-md);
+        border: 1px solid var(--border);
+        background: var(--panel);
+        color: var(--fg-strong);
+        font-size: 11px;
+      }
+      .directions-box .dir-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+      .directions-box .dir-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 10px 12px;
+        border-radius: var(--r-md);
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        border: 1px solid transparent;
+        text-decoration: none;
+        transition: transform .1s, background .15s, border-color .15s;
+      }
+      .directions-box .dir-btn:active {
+        transform: scale(0.98);
+      }
+      .directions-box .dir-btn-primary {
+        background: var(--accent);
+        color: var(--accent-contrast);
+        border-color: var(--accent);
+      }
+      .directions-box .dir-btn-primary:hover {
+        background: var(--accent-hover);
+      }
+      .directions-box .dir-btn-primary:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .directions-box .dir-btn-secondary {
+        background: var(--accent-soft);
+        color: var(--accent-hover);
+        border-color: var(--border-strong);
+      }
+      .directions-box .dir-btn-secondary:hover {
+        background: var(--accent-ring);
+      }
+      .directions-box .dir-btn-secondary.is-disabled {
+        opacity: 0.4;
+        pointer-events: none;
+      }
+      .directions-map-wrap {
+        margin-top: 10px;
+        border-radius: var(--r-md);
+        border: 1px solid var(--border);
+        overflow: hidden;
+        background: var(--panel);
+      }
+      .directions-map-caption {
+        font-size: 10px;
+        color: var(--muted);
+        padding: 6px 10px;
+        margin: 0;
+        border-bottom: 1px solid var(--border);
+        line-height: 1.35;
+      }
+      .directions-map {
+        width: 100%;
+        height: 200px;
+      }
 
       /* ===== Pet Chat ===== */
       .chat-wrap {
         display: flex;
         flex-direction: column;
-        gap: 8px;
-        height: 100%;
-        min-height: 260px;
+        gap: 6px;
+        flex: 1;
+        min-height: 0;
       }
       .chat-log {
         flex: 1;
+        min-height: 0;
         overflow-y: auto;
-        padding: 4px 2px;
+        padding: 0 2px;
         display: flex;
         flex-direction: column;
         gap: 7px;
@@ -651,6 +752,22 @@
         line-height: 1.5;
         word-break: break-word;
         white-space: pre-wrap;
+        user-select: text;
+        -webkit-user-select: text;
+        cursor: text;
+      }
+      .chat-msg a,
+      .chat-trace a {
+        color: inherit;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        word-break: break-all;
+      }
+      .chat-msg.user a { color: #F0F3FF; }
+      .chat-msg.pet a { color: var(--accent); }
+      .chat-trace {
+        user-select: text;
+        -webkit-user-select: text;
       }
       .chat-msg.user {
         align-self: flex-end;
@@ -740,6 +857,24 @@
         transition: color 0.15s var(--ease-out), border-color 0.15s var(--ease-out);
       }
       .chat-actions button:hover { color: var(--fg); border-color: var(--border-strong); }
+
+      .chat-hitl-bar {
+        font-size: 10px;
+        line-height: 1.45;
+        color: var(--fg);
+        background: var(--accent-soft);
+        border: 1px solid var(--accent);
+        border-radius: var(--r-md);
+        padding: 6px 10px;
+      }
+      .chat-hitl-bar.chat-hitl-bar--sending {
+        border-style: dashed;
+        opacity: 0.92;
+      }
+      .chat-session-label {
+        font-weight: 500;
+        color: var(--muted);
+      }
 
       .pane-list { list-style: none; padding: 0; margin: 0; }
       .pane-list li {
@@ -1484,9 +1619,9 @@
   </head>
   <body>
     <div id="widget">
-      <div class="titlebar">
-        <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
-        <span class="title">Smart Office Pet</span>
+      <div class="titlebar" data-pywebview-drag-region>
+        <span class="dot r" data-pywebview-drag-region></span><span class="dot y" data-pywebview-drag-region></span><span class="dot g" data-pywebview-drag-region></span>
+        <span class="title" data-pywebview-drag-region>Smart Office Pet</span>
         <button type="button" class="profile-btn" id="btnProfile" title="프로필">프로필</button>
         <span id="userBadge" style="-webkit-app-region: no-drag;"></span>
       </div>
@@ -1520,7 +1655,7 @@
       <div class="actions" role="tablist">
         <button type="button" data-action="status" class="active">상태<span class="k">s</span></button>
         <button type="button" data-action="bus">버스<span class="k">b</span></button>
-        <button type="button" data-action="cafe">카페<span class="k">c</span></button>
+        <button type="button" data-action="directions">전철<span class="k">n</span></button>
         <button type="button" data-action="lunch_roulette">점심<span class="k">l</span></button>
         <button type="button" data-action="calendar">일정<span class="k">g</span></button>
         <button type="button" data-action="pet_chat">대화<span class="k">p</span></button>
@@ -1543,7 +1678,7 @@
       <div class="profile-card">
         <h2 id="profileTitle">프로필 설정</h2>
         <p class="lead" id="profileLead">
-          펫 매칭·카페 레이더·버스 등에 쓰입니다. 저장 후 위젯을 사용할 수 있어요.
+          펫 매칭·길찾기·버스 등에 쓰입니다. 저장 후 위젯을 사용할 수 있어요.
         </p>
         <form id="profileForm" onsubmit="submitProfile(event)">
           <label for="pfDisplayName">표시 이름</label>
@@ -1592,7 +1727,7 @@
             <option value="other">기타</option>
           </select>
 
-          <label for="pfLat">회사 위도 · 경도 (카페/거리 계산)</label>
+          <label for="pfLat">회사 위도 · 경도 (길찾기 출발지)</label>
           <div class="row2">
             <input id="pfLat" name="company_lat" type="number" step="any" required placeholder="예: 37.4979" />
             <input id="pfLng" name="company_lng" type="number" step="any" required placeholder="예: 127.0276" />
@@ -1610,14 +1745,43 @@
 
     <script>
       const USER_ID = {{ user_id }};
-      const GOOGLE_MAPS_API_KEY = {{ google_maps_api_key | tojson }};
-      const GOOGLE_MAPS_MAP_ID = {{ google_maps_map_id | tojson }};
+      const KAKAO_MAPS_APP_KEY = {{ kakao_maps_js_app_key | tojson }};
       const $ = (id) => document.getElementById(id);
+
+      /* ---------- pywebview: 외부 링크 시스템 브라우저로 열기 ----------
+         WKWebView 는 target=_blank 를 무시하거나 같은 창에서 열려 실패함.
+         href 가 http(s) 인 링크는 모두 intercept 해서 파이썬 쪽 open_external API 로 전달.
+         일반 브라우저 모드에선 기본 동작(window.open) 그대로.
+      */
+      function openExternalUrl(url) {
+        if (!url) return false;
+        try {
+          const api = window.pywebview && window.pywebview.api;
+          if (api && typeof api.open_external === "function") {
+            api.open_external(url);
+            return true;
+          }
+        } catch (e) { /* ignore */ }
+        try {
+          window.open(url, "_blank", "noopener");
+          return true;
+        } catch (e) {
+          return false;
+        }
+      }
+      document.addEventListener("click", (ev) => {
+        const a = ev.target && ev.target.closest && ev.target.closest("a[href]");
+        if (!a) return;
+        const href = a.getAttribute("href") || "";
+        if (!/^https?:\/\//i.test(href)) return;
+        ev.preventDefault();
+        openExternalUrl(href);
+      }, true);
 
       const ACTION_LABEL = {
         status: "상태",
         bus: "버스",
-        cafe: "카페",
+        directions: "전철 길찾기",
         lunch_roulette: "점심",
         calendar: "일정",
         pet_chat: "대화",
@@ -1696,7 +1860,7 @@
           ov.dataset.mode = "required";
           $("profileTitle").textContent = "처음 설정";
           $("profileLead").textContent =
-            "펫 매칭·카페 레이더에 사용됩니다. 필수 항목을 입력한 뒤 저장해 주세요.";
+            "펫 매칭·길찾기 출발지에 사용됩니다. 필수 항목을 입력한 뒤 저장해 주세요.";
           cancelBtn.style.display = "none";
           saveBtn.textContent = "저장하고 시작";
         } else {
@@ -1721,8 +1885,8 @@
           currentUser.profile_complete === true ? "프로필 수정" : "처음 설정";
         $("profileLead").textContent =
           currentUser.profile_complete === true
-            ? "정보를 바꾸면 펫 매칭 기준·주변 카페 위치가 달라질 수 있어요."
-            : "펫 매칭·카페 레이더에 사용됩니다. 필수 항목을 입력한 뒤 저장해 주세요.";
+            ? "정보를 바꾸면 펫 매칭 기준·길찾기 출발 위치가 달라질 수 있어요."
+            : "펫 매칭·길찾기 출발지에 사용됩니다. 필수 항목을 입력한 뒤 저장해 주세요.";
         $("profileCancelBtn").style.display =
           currentUser.profile_complete === true ? "" : "none";
         $("profileSaveBtn").textContent =
@@ -1859,30 +2023,11 @@
       }
 
       function setActiveButton(action) {
-        const prev = activeAction;
         activeAction = action;
         document.querySelectorAll(".actions button").forEach((b) => {
           b.classList.toggle("active", b.dataset.action === action);
         });
         syncPanelLayoutMode(action);
-        if (prev === "cafe" && action !== "cafe") {
-          teardownCafeMap();
-        }
-      }
-
-      function teardownCafeMap() {
-        try {
-          (cafeMapState.markers || []).forEach((m) => m.setMap && m.setMap(null));
-          if (cafeMapState.centerMarker) cafeMapState.centerMarker.setMap(null);
-          if (cafeMapState.circle) cafeMapState.circle.setMap(null);
-          if (cafeMapState.infoWindow) cafeMapState.infoWindow.close();
-        } catch (e) { /* noop */ }
-        cafeMapState.markers = [];
-        cafeMapState.centerMarker = null;
-        cafeMapState.circle = null;
-        cafeMapState.map = null;
-        cafeMapState.infoWindow = null;
-        cafeMapState.selectedIdx = -1;
       }
 
       function renderPet(pet) {
@@ -1919,9 +2064,119 @@
         ];
       }
 
+      let directionsMapInst = null;
+      let kakaoMapSdkPromise = null;
+
+      function teardownDirectionsMap() {
+        if (!directionsMapInst) return;
+        try {
+          directionsMapInst.overlays.forEach((o) => {
+            if (o && typeof o.setMap === "function") o.setMap(null);
+          });
+        } catch (e) {
+          /* ignore */
+        }
+        directionsMapInst = null;
+      }
+
+      function loadKakaoMapsSdk() {
+        if (!KAKAO_MAPS_APP_KEY) return Promise.resolve(null);
+        if (window.kakao?.maps) return Promise.resolve(kakao.maps);
+        if (kakaoMapSdkPromise) return kakaoMapSdkPromise;
+        kakaoMapSdkPromise = new Promise((resolve) => {
+          const scr = document.createElement("script");
+          scr.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${encodeURIComponent(
+            KAKAO_MAPS_APP_KEY
+          )}&autoload=false`;
+          scr.async = true;
+          scr.onload = () => {
+            if (!window.kakao?.maps?.load) {
+              kakaoMapSdkPromise = null;
+              resolve(null);
+              return;
+            }
+            try {
+              kakao.maps.load(() => resolve(kakao.maps));
+            } catch (e) {
+              kakaoMapSdkPromise = null;
+              resolve(null);
+            }
+          };
+          scr.onerror = () => {
+            kakaoMapSdkPromise = null;
+            resolve(null);
+          };
+          document.head.appendChild(scr);
+        });
+        return kakaoMapSdkPromise;
+      }
+
+      function setupDirectionsMiniMapFromCache() {
+        if (!KAKAO_MAPS_APP_KEY) return;
+        const slot = paneCache.directions;
+        if (!slot || slot.kind !== "rich" || !slot.out) return;
+        const d = slot.out.dashboard?.data || {};
+        const oLat = d.center?.lat;
+        const oLng = d.center?.lng;
+        const dest = d.destination;
+        const dLat = dest?.lat;
+        const dLng = dest?.lng;
+        if (oLat == null || oLng == null || dLat == null || dLng == null) return;
+
+        loadKakaoMapsSdk().then((maps) => {
+          if (!maps) return;
+          const el = document.getElementById("directionsMap");
+          if (!el || activeAction !== "directions") return;
+
+          const o = new maps.LatLng(oLat, oLng);
+          const dt = new maps.LatLng(dLat, dLng);
+          const bounds = new maps.LatLngBounds();
+          bounds.extend(o);
+          bounds.extend(dt);
+
+          const map = new maps.Map(el, { center: o, level: 5 });
+
+          const mk1 = new maps.Marker({ position: o });
+          const mk2 = new maps.Marker({ position: dt });
+          mk1.setMap(map);
+          mk2.setMap(map);
+
+          const rc = d.route_coords;
+          let path;
+          if (Array.isArray(rc) && rc.length >= 2) {
+            path = rc.map(([la, ln]) => new maps.LatLng(la, ln));
+          } else {
+            path = [o, dt];
+          }
+          path.forEach((p) => bounds.extend(p));
+          map.setBounds(bounds, 24, 24, 48, 24);
+
+          const poly = new maps.Polyline({
+            path,
+            strokeWeight: 4,
+            strokeColor: "#3b82f6",
+            strokeOpacity: 0.85,
+            strokeStyle:
+              Array.isArray(rc) && rc.length >= 2 ? "solid" : "dashed",
+          });
+          poly.setMap(map);
+          directionsMapInst = { map, overlays: [mk1, mk2, poly] };
+
+          requestAnimationFrame(() => {
+            try {
+              map.relayout();
+            } catch (e) {
+              /* ignore */
+            }
+          });
+        });
+      }
+
       function renderPaneFromCache() {
+        teardownDirectionsMap();
         const slot = paneCache[activeAction];
         const body = $("resultBody");
+        body.classList.remove("result-body--chat");
         $("resultLabel").textContent = ACTION_LABEL[activeAction] || activeAction;
         $("resultHint").textContent = slot ? "" : "아직 불러오지 않음";
 
@@ -1941,6 +2196,14 @@
           body.innerHTML = r
             ? r(slot.out)
             : fallbackLines(slot.out);
+          if (activeAction === "pet_chat") {
+            body.classList.add("result-body--chat");
+          }
+          if (activeAction === "directions") {
+            requestAnimationFrame(() => {
+              requestAnimationFrame(() => setupDirectionsMiniMapFromCache());
+            });
+          }
           return;
         }
         body.innerHTML = '<p class="placeholder">(내용 없음)</p>';
@@ -2031,191 +2294,18 @@
         return stopPillClass(a.stop_count);
       }
 
-      /* ---------- Google Maps (Cafe) ---------- */
-      const cafeMapState = {
-        center: null,
-        radiusM: 500,
-        places: [],
-        selectedIdx: -1,
-        map: null,
-        markers: [],
-        centerMarker: null,
-        circle: null,
-        infoWindow: null,
-      };
-      let _gmapsLoaderPromise = null;
-
-      function loadGoogleMaps() {
-        if (window.google && window.google.maps) return Promise.resolve(window.google);
-        if (!GOOGLE_MAPS_API_KEY) {
-          return Promise.reject(new Error("GOOGLE_MAPS_API_KEY not set"));
-        }
-        if (_gmapsLoaderPromise) return _gmapsLoaderPromise;
-        _gmapsLoaderPromise = new Promise((resolve, reject) => {
-          const cbName = "__gmapsReady_" + Date.now();
-          window[cbName] = () => {
-            resolve(window.google);
-            try { delete window[cbName]; } catch (e) {}
-          };
-          const s = document.createElement("script");
-          const params = new URLSearchParams({
-            key: GOOGLE_MAPS_API_KEY,
-            callback: cbName,
-            v: "weekly",
-            libraries: "marker",
-            language: "ko",
-            region: "KR",
-          });
-          s.src = `https://maps.googleapis.com/maps/api/js?${params.toString()}`;
-          s.async = true;
-          s.defer = true;
-          s.onerror = () => reject(new Error("Google Maps JS load failed"));
-          document.head.appendChild(s);
-        });
-        return _gmapsLoaderPromise;
-      }
-
-      const cafeMapStyleDark = [
-        { elementType: "geometry", stylers: [{ color: "#0E111A" }] },
-        { elementType: "labels.text.fill", stylers: [{ color: "#7A839B" }] },
-        { elementType: "labels.text.stroke", stylers: [{ color: "#0A0C12" }] },
-        { featureType: "administrative", elementType: "geometry.stroke", stylers: [{ color: "#1F2433" }] },
-        { featureType: "road", elementType: "geometry", stylers: [{ color: "#171B27" }] },
-        { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#1F2433" }] },
-        { featureType: "road.arterial", elementType: "geometry", stylers: [{ color: "#1F2534" }] },
-        { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#262C3F" }] },
-        { featureType: "water", elementType: "geometry", stylers: [{ color: "#0B1522" }] },
-        { featureType: "poi", elementType: "labels", stylers: [{ visibility: "off" }] },
-        { featureType: "transit", elementType: "labels", stylers: [{ visibility: "off" }] },
-        { featureType: "landscape", elementType: "geometry", stylers: [{ color: "#0F1220" }] },
-      ];
-
-      async function setupCafeMap() {
-        const host = document.getElementById("cafeMapCanvas");
-        const hint = document.getElementById("cafeMapHint");
-        if (!host) return;
-        if (!GOOGLE_MAPS_API_KEY) {
-          if (hint) hint.textContent = "GOOGLE_MAPS_API_KEY 미설정 · 목록만 표시";
+      async function submitDirectionsSearch() {
+        const fromInp = document.getElementById("directionsFrom");
+        const toInp = document.getElementById("directionsTo");
+        const regionSel = document.getElementById("directionsRegion");
+        const from_station = fromInp && fromInp.value ? fromInp.value.trim() : "";
+        const to_station = toInp && toInp.value ? toInp.value.trim() : "";
+        const region = regionSel && regionSel.value ? regionSel.value : "seoul";
+        if (!from_station || !to_station) {
+          toast("출발역과 도착역을 모두 입력해 주세요");
           return;
         }
-        const { center, places } = cafeMapState;
-        if (!center || !places.length) {
-          if (hint) hint.textContent = "지도 데이터를 준비 중입니다";
-          return;
-        }
-        try {
-          const google = await loadGoogleMaps();
-          cafeMapState.map = new google.maps.Map(host, {
-            center: { lat: center.lat, lng: center.lng },
-            zoom: 16,
-            disableDefaultUI: true,
-            gestureHandling: "greedy",
-            backgroundColor: "#0A0C12",
-            clickableIcons: false,
-            ...(GOOGLE_MAPS_MAP_ID
-              ? { mapId: GOOGLE_MAPS_MAP_ID }
-              : { styles: cafeMapStyleDark }),
-          });
-          cafeMapState.infoWindow = new google.maps.InfoWindow({ disableAutoPan: true });
-
-          cafeMapState.circle = new google.maps.Circle({
-            map: cafeMapState.map,
-            center: { lat: center.lat, lng: center.lng },
-            radius: cafeMapState.radiusM || 500,
-            strokeColor: "#94B0FF",
-            strokeOpacity: 0.9,
-            strokeWeight: 1.5,
-            fillColor: "#7C9BFF",
-            fillOpacity: 0.1,
-            clickable: false,
-          });
-
-          cafeMapState.centerMarker = new google.maps.Marker({
-            map: cafeMapState.map,
-            position: { lat: center.lat, lng: center.lng },
-            title: center.label || "회사",
-            zIndex: 999,
-            icon: {
-              path: google.maps.SymbolPath.CIRCLE,
-              scale: 7,
-              fillColor: "#F2B64A",
-              fillOpacity: 1,
-              strokeColor: "#0A0C12",
-              strokeWeight: 2,
-            },
-          });
-
-          cafeMapState.markers = places
-            .map((p, i) => {
-              if (p.lat == null || p.lng == null) return null;
-              const m = new google.maps.Marker({
-                map: cafeMapState.map,
-                position: { lat: p.lat, lng: p.lng },
-                title: p.name || "",
-                icon: {
-                  path: google.maps.SymbolPath.CIRCLE,
-                  scale: 6,
-                  fillColor: "#7C9BFF",
-                  fillOpacity: 0.95,
-                  strokeColor: "#0A0C12",
-                  strokeWeight: 2,
-                },
-              });
-              m.addListener("click", () => focusCafe(i));
-              return m;
-            })
-            .filter(Boolean);
-
-          // 영역 맞추기 (회사 + 카페들)
-          const bounds = new google.maps.LatLngBounds();
-          bounds.extend({ lat: center.lat, lng: center.lng });
-          cafeMapState.markers.forEach((m) => bounds.extend(m.getPosition()));
-          if (!bounds.isEmpty()) {
-            cafeMapState.map.fitBounds(bounds, { top: 24, right: 24, bottom: 24, left: 24 });
-          }
-
-          if (hint) hint.remove();
-        } catch (err) {
-          console.warn("cafe map setup failed", err);
-          if (hint) hint.textContent = "지도를 불러오지 못했어요 (키/네트워크 확인)";
-        }
-      }
-
-      function focusCafe(idx) {
-        const { places, markers, map, infoWindow } = cafeMapState;
-        const p = places[idx];
-        if (!p) return;
-        cafeMapState.selectedIdx = idx;
-
-        // 목록 active 상태
-        document
-          .querySelectorAll("#cafeList li[data-cafe-idx]")
-          .forEach((el) => {
-            el.classList.toggle(
-              "is-active",
-              String(idx) === el.dataset.cafeIdx
-            );
-          });
-
-        if (!map || !markers.length) return;
-        const marker = markers[idx];
-        if (marker) {
-          map.panTo(marker.getPosition());
-          map.setZoom(Math.max(map.getZoom() || 16, 17));
-          if (infoWindow) {
-            infoWindow.setContent(
-              `<div style="font-size:12px;color:#0A0C12;padding:3px 2px 0;min-width:120px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',sans-serif;">
-                 <b style="letter-spacing:-0.01em;">${escapeHtml(p.name || "")}</b><br/>
-                 <span style="color:#4A5064;font-size:11px;">${escapeHtml(
-                   [p.category, fmtDistance(p.distance_m)].filter(Boolean).join(" · ")
-                 )}</span>
-               </div>`
-            );
-            infoWindow.open({ map, anchor: marker });
-          }
-        } else if (p.lat != null && p.lng != null) {
-          map.panTo({ lat: p.lat, lng: p.lng });
-        }
+        await runAction("directions", { from_station, to_station, region });
       }
 
       /* ---------- Pet Chat (ADK 2.0 Supervisor Agent) ---------- */
@@ -2224,8 +2314,9 @@
         messages: [],       // {role:'user'|'pet'|'trace', text, klass?}
         sending: false,
         bootstrapped: false,
+        hitlReplyInFlight: false,
         // HITL: 서버가 interrupt 이벤트를 주면 여기 채워두고, 다음 입력은
-        // function_response 로 보낸다. 재개되면 다시 null.
+        // function_response 로 보낸다. 스트림이 정상 종료되면 null.
         pendingInterrupt: null, // {id, message}
       };
 
@@ -2233,16 +2324,42 @@
         return `
           <div class="chat-wrap">
             <div class="chat-log" id="chatLog"></div>
+            <div id="chatHitlBar" class="chat-hitl-bar" hidden></div>
             <div class="chat-input">
               <input id="chatInput" placeholder="뭐든 물어보세요 (예: 회의 전에 뭐 먹지?)" />
               <button id="chatSend">보내기</button>
             </div>
             <div class="chat-actions">
-              <span id="chatSessionLabel">새 세션</span>
-              <button id="chatReset" title="새 대화 시작">초기화</button>
+              <span id="chatSessionLabel" class="chat-session-label">대화 시작 전</span>
+              <button id="chatReset" type="button" title="대화 로그를 비우고 처음부터 (진행 중인 점심·일정 확인은 끊김)">대화 초기화</button>
             </div>
           </div>
         `;
+      }
+
+      const _URL_RE = /(https?:\/\/[^\s<>"')]+)/g;
+      function setChatBubbleText(el, text) {
+        el.textContent = "";
+        const s = text == null ? "" : String(text);
+        if (!s) return;
+        let last = 0;
+        let m;
+        _URL_RE.lastIndex = 0;
+        while ((m = _URL_RE.exec(s)) !== null) {
+          if (m.index > last) {
+            el.appendChild(document.createTextNode(s.slice(last, m.index)));
+          }
+          const a = document.createElement("a");
+          a.href = m[0];
+          a.textContent = m[0];
+          a.target = "_blank";
+          a.rel = "noopener noreferrer";
+          el.appendChild(a);
+          last = m.index + m[0].length;
+        }
+        if (last < s.length) {
+          el.appendChild(document.createTextNode(s.slice(last)));
+        }
       }
 
       function appendChatMessage(role, text, klass) {
@@ -2252,11 +2369,10 @@
         const div = document.createElement("div");
         if (role === "trace") {
           div.className = "chat-trace " + (klass || "");
-          div.textContent = text;
         } else {
           div.className = "chat-msg " + role + (klass ? " " + klass : "");
-          div.textContent = text;
         }
+        setChatBubbleText(div, text);
         log.appendChild(div);
         log.scrollTop = log.scrollHeight;
         return div;
@@ -2270,14 +2386,49 @@
           const div = document.createElement("div");
           if (m.role === "trace") {
             div.className = "chat-trace " + (m.klass || "");
-            div.textContent = m.text;
           } else {
             div.className = "chat-msg " + m.role + (m.klass ? " " + m.klass : "");
-            div.textContent = m.text;
           }
+          setChatBubbleText(div, m.text);
           log.appendChild(div);
         }
         log.scrollTop = log.scrollHeight;
+      }
+
+      function syncChatHitlBar() {
+        const bar = document.getElementById("chatHitlBar");
+        const inp = document.getElementById("chatInput");
+        const btn = document.getElementById("chatSend");
+        const hitl = chatState.pendingInterrupt;
+        const sending = chatState.hitlReplyInFlight;
+        if (bar) {
+          if (hitl && hitl.id) {
+            bar.hidden = false;
+            bar.className =
+              "chat-hitl-bar" + (sending ? " chat-hitl-bar--sending" : "");
+            bar.textContent = sending
+              ? "회신 전송 중… (같은 대화가 이어집니다. 새 대화가 아니에요.)"
+              : "펫이 점심·일정 등 확인을 기다리고 있어요. 아래 입력은 그 확인에 대한 답이에요. 새 대화를 시작하는 단계가 아닙니다.";
+          } else if (sending) {
+            bar.hidden = false;
+            bar.className = "chat-hitl-bar chat-hitl-bar--sending";
+            bar.textContent =
+              "회신 전송 중… (같은 대화가 이어집니다.)";
+          } else {
+            bar.hidden = true;
+            bar.textContent = "";
+            bar.className = "chat-hitl-bar";
+          }
+        }
+        if (inp) {
+          inp.placeholder =
+            hitl && hitl.id
+              ? "예: accept / cancel / edit 한식, 일식 …"
+              : "뭐든 물어보세요 (예: 회의 전에 뭐 먹지?)";
+        }
+        if (btn) {
+          btn.textContent = hitl && hitl.id ? "회신" : "보내기";
+        }
       }
 
       function setupChatPane() {
@@ -2287,12 +2438,13 @@
         if (!input || !btnSend || !btnReset) return;
         renderChatLog();
         updateChatSessionLabel();
+        syncChatHitlBar();
 
         // 최초 진입 시 빈 세션일 수 있으니 인사말 한 번만
         if (!chatState.bootstrapped && chatState.messages.length === 0) {
           appendChatMessage(
             "pet",
-            "안녕하세요! 저는 당신의 반려 펫이에요 🐾\n버스 · 점심 · 카페 · 일정, 또는 '나 지금 피곤해' 같은 것도 같이 챙길 수 있어요."
+            "안녕하세요! 저는 당신의 반려 펫이에요 🐾\n버스 · 점심 · 길찾기 · 일정, 또는 '나 지금 피곤해' 같은 것도 같이 챙길 수 있어요."
           );
           chatState.bootstrapped = true;
         }
@@ -2311,19 +2463,34 @@
       function updateChatSessionLabel() {
         const el = document.getElementById("chatSessionLabel");
         if (!el) return;
-        el.textContent = chatState.sessionId
-          ? `세션 ${chatState.sessionId.slice(0, 8)}…`
-          : "새 세션";
+        if (chatState.sessionId) {
+          el.textContent = `이어진 대화 · ${chatState.sessionId.slice(0, 8)}…`;
+        } else if (chatState.pendingInterrupt && chatState.pendingInterrupt.id) {
+          el.textContent = "확인 대기 (같은 대화)";
+        } else {
+          el.textContent = "대화 시작 전";
+        }
       }
 
       async function resetChatSession() {
+        if (chatState.pendingInterrupt && chatState.pendingInterrupt.id) {
+          if (
+            !confirm(
+              "지금 대기 중인 확인(점심·일정 등)이 끊기고, 대화 로그도 지워져요. 대화 초기화할까요?"
+            )
+          ) {
+            return;
+          }
+        }
         // Stateless chat: 서버 세션 삭제 없이 로컬 상태만 초기화
         chatState.sessionId = null;
         chatState.messages = [];
         chatState.bootstrapped = false;
         chatState.pendingInterrupt = null;
+        chatState.hitlReplyInFlight = false;
         renderChatLog();
         updateChatSessionLabel();
+        syncChatHitlBar();
         setupChatPane();
       }
 
@@ -2334,6 +2501,15 @@
         if (!input) return;
         const text = (input.value || "").trim();
         if (!text) return;
+
+        const pendingHitlId = chatState.pendingInterrupt?.id || null;
+        if (pendingHitlId && !chatState.sessionId) {
+          toast(
+            "대화 세션이 아직 없어요. 질문에 대한 답이 끝난 뒤(생각 중이 끝난 뒤) 다시 보내 주세요."
+          );
+          return;
+        }
+
         input.value = "";
 
         chatState.sending = true;
@@ -2344,19 +2520,20 @@
 
         let petBubble = null;
         let petText = "";
+        let streamFinishedOk = false;
 
         try {
           const payload = {
             message: text,
             session_id: chatState.sessionId,
           };
-          if (chatState.pendingInterrupt && chatState.pendingInterrupt.id) {
-            // HITL 재개 — 서버는 function_response 가 있으면 message 를 무시한다.
+          if (pendingHitlId) {
             payload.function_response = {
-              id: chatState.pendingInterrupt.id,
+              id: pendingHitlId,
               response: text,
             };
-            chatState.pendingInterrupt = null;
+            chatState.hitlReplyInFlight = true;
+            syncChatHitlBar();
           }
           const resp = await fetch(`/api/chat?user_id=${USER_ID}`, {
             method: "POST",
@@ -2371,8 +2548,9 @@
 
           while (true) {
             const { value, done } = await reader.read();
-            if (done) break;
-            buf += decoder.decode(value, { stream: true });
+            if (value) {
+              buf += decoder.decode(value, { stream: true });
+            }
             let idx;
             while ((idx = buf.indexOf("\n\n")) !== -1) {
               const frame = buf.slice(0, idx);
@@ -2389,17 +2567,28 @@
                 } else {
                   petText += chunk;
                 }
-                petBubble.textContent = petText;
+                setChatBubbleText(petBubble, petText);
+                // keep message state in sync so re-renders carry links
+                const last = chatState.messages[chatState.messages.length - 1];
+                if (last && last.role === "pet") last.text = petText;
                 const log = document.getElementById("chatLog");
                 if (log) log.scrollTop = log.scrollHeight;
               });
             }
+            if (done) break;
           }
+          streamFinishedOk = true;
         } catch (e) {
           if (thinking && thinking.parentElement) thinking.remove();
           appendChatMessage("trace", "⚠ " + (e?.message || e), "error");
         } finally {
+          if (pendingHitlId && streamFinishedOk) {
+            chatState.pendingInterrupt = null;
+          }
+          chatState.hitlReplyInFlight = false;
           chatState.sending = false;
+          syncChatHitlBar();
+          updateChatSessionLabel();
           if (btn) btn.disabled = false;
           if (input) input.focus();
         }
@@ -2447,12 +2636,12 @@
           appendChatMessage("trace", `↪ delegate → ${data.to}`, "transfer");
         } else if (type === "interrupt") {
           // 서버가 HITL 질의를 보내왔다. 다음 입력은 function_response 로 전송.
-          chatState.pendingInterrupt = {
-            id: data?.interrupt_id || null,
-            message: data?.message || "",
-          };
+          const iid = data?.interrupt_id || null;
           const prompt = data?.message || "추가 정보가 필요해요.";
+          chatState.pendingInterrupt = { id: iid, message: prompt };
           appendToPet(prompt, true);
+          updateChatSessionLabel();
+          syncChatHitlBar();
         } else if (type === "error") {
           appendChatMessage("trace", "⚠ " + (data?.message || "error"), "error");
         }
@@ -2578,50 +2767,54 @@
           `;
         },
 
-        cafe(out) {
+        directions(out) {
           const d = out.dashboard?.data || {};
-          const places = (d.places || []).slice(0, 8);
-          if (!places.length) {
-            return '<p class="placeholder">반경 500m 이내에 카페가 없습니다</p>';
-          }
-          // 지도 시각화용 payload 보관 (렌더 후 비동기로 setup)
-          cafeMapState.center = d.center || null;
-          cafeMapState.radiusM = d.radius_m || 500;
-          cafeMapState.places = places;
-          cafeMapState.selectedIdx = -1;
-
-          const mapKeyAvailable = !!GOOGLE_MAPS_API_KEY;
-          const hint = mapKeyAvailable
-            ? "지도를 불러오는 중..."
-            : "GOOGLE_MAPS_API_KEY 미설정 · 목록만 표시";
-          const mapBlock = `
-            <div class="cafe-map" id="cafeMap">
-              <div id="cafeMapCanvas"></div>
-              <div class="cafe-map-hint" id="cafeMapHint">${escapeHtml(hint)}</div>
-            </div>`;
-
-          requestAnimationFrame(() => setupCafeMap());
-
-          return `
-            ${mapBlock}
-            <div class="pane-meta">☕ 반경 500m · ${places.length}곳 (거리순)</div>
-            <ul class="pane-list" id="cafeList">${places
-              .map(
-                (p, i) => `
-              <li data-cafe-idx="${i}" onclick="focusCafe(${i})">
-                <span class="main">
-                  <span class="name">${escapeHtml(p.name || "-")}</span>
-                  <span class="sub">${escapeHtml(
-                    [p.category, p.address].filter(Boolean).join(" · ")
-                  )}</span>
-                </span>
-                <span class="pill">${escapeHtml(
-                  fmtDistance(p.distance_m)
-                )}</span>
-              </li>`
-              )
-              .join("")}</ul>
-          `;
+          const lines = out.dashboard?.lines || [];
+          const list =
+            lines.length > 0
+              ? `<ul>${lines.map((l) => `<li>${escapeHtml(l)}</li>`).join("")}</ul>`
+              : '<p class="placeholder">안내 없음</p>';
+          const fromVal = d.last_from ? String(d.last_from) : "";
+          const toVal = d.last_to ? String(d.last_to) : "";
+          const regions = Array.isArray(d.regions) && d.regions.length
+            ? d.regions
+            : ["seoul", "busan", "daegu", "gwangju", "daejeon"];
+          const currentRegion = d.region || "seoul";
+          const REGION_LABEL = {
+            seoul: "수도권",
+            busan: "부산",
+            daegu: "대구",
+            gwangju: "광주",
+            daejeon: "대전",
+          };
+          const regionOptions = regions
+            .map((r) => {
+              const sel = r === currentRegion ? " selected" : "";
+              const label = REGION_LABEL[r] || r;
+              return `<option value="${escapeHtml(r)}"${sel}>${escapeHtml(label)}</option>`;
+            })
+            .join("");
+          const linkAttrs = d.kakao_url
+            ? `href="${escapeHtml(d.kakao_url)}" target="_blank" rel="noopener noreferrer"`
+            : `href="#" onclick="event.preventDefault();"`;
+          const linkDisabledCls = d.kakao_url ? "" : " is-disabled";
+          const form = `<div class="directions-box" style="margin-top:10px;">
+                 <div class="dir-title">🚇 지하철 길찾기</div>
+                 <div class="dir-fields">
+                   <input type="text" id="directionsFrom" placeholder="출발역 (예: 회기역)" value="${escapeHtml(fromVal)}" autocomplete="off" />
+                   <span class="dir-arrow" aria-hidden="true">→</span>
+                   <input type="text" id="directionsTo" placeholder="도착역 (예: 강남역)" value="${escapeHtml(toVal)}" autocomplete="off" />
+                 </div>
+                 <div class="dir-region">
+                   <span>지역</span>
+                   <select id="directionsRegion">${regionOptions}</select>
+                 </div>
+                 <div class="dir-actions">
+                   <button type="button" class="dir-btn dir-btn-primary" onclick="submitDirectionsSearch()">🔍 검색</button>
+                   <a class="dir-btn dir-btn-secondary${linkDisabledCls}" ${linkAttrs}>🗺 카카오맵 열기</a>
+                 </div>
+               </div>`;
+          return list + form;
         },
 
         lunch_roulette(out) {
@@ -3536,10 +3729,10 @@
       });
 
       const KEY_MAP = {
-        s: "status", b: "bus", c: "cafe", l: "lunch_roulette",
+        s: "status", b: "bus", n: "directions", l: "lunch_roulette",
         g: "calendar", p: "pet_chat",
       };
-      /** 채팅/프로필 입력 중에는 탭 단축키(s,b,c,l,g,p)를 쓰지 않는다. */
+      /** 채팅/프로필 입력 중에는 탭 단축키(s,b,n,l,g,p)를 쓰지 않는다. */
       function isEditableTarget(el) {
         if (!el || el.nodeType !== 1) return false;
         const tag = el.tagName.toLowerCase();

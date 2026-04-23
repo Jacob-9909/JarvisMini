@@ -52,8 +52,10 @@ logger = logging.getLogger(__name__)
 def _normalize_seoul_bus_api_key(raw: str) -> str:
     """공공데이터포털은 **인증키(Encoding)** / **인증키(Decoding)** 두 종류를 준다.
 
-    - **Decoding 키**: 일반 문자열. ``httpx`` 가 ``serviceKey`` 쿼리로 보낼 때 한 번만
+    - **Decoding 키**: 일반 문자열. ``httpx`` 가 ``ServiceKey`` 쿼리로 보낼 때 한 번만
       URL 인코딩하면 된다 → ``.env`` 에 이 값을 넣는 것을 권장.
+    - (참고) 활용가이드 요청 표에는 ``serviceKey`` 로 적힌 경우도 있으나, ``ws.bus.go.kr``
+      샘플 URL은 ``ServiceKey`` 를 쓰는 경우가 많아 동일하게 맞춘다.
     - **Encoding 키**: 이미 ``%2F``, ``%3D`` 등으로 인코딩된 문자열. 그대로 넣으면
       클라이언트가 다시 인코딩해 **이중 인코딩**되어 API 가 거절하는 경우가 많다.
       → ``urllib.parse.unquote`` 로 원문으로 되돌린 뒤 전달한다.
@@ -271,7 +273,7 @@ async def get_arrival(
     routes = {r.strip() for r in (route_id or "").split(",") if r.strip()}
 
     params = {
-        "serviceKey": BUS_API_KEY,
+        "ServiceKey": BUS_API_KEY,
         "arsId": stop_id_str,
         "resultType": "json",
     }
@@ -344,7 +346,7 @@ async def get_routes_by_station(ars_id: str) -> List[Dict[str, Any]]:
         return _mock_routes(ars_id_str)
 
     params = {
-        "serviceKey": BUS_API_KEY,
+        "ServiceKey": BUS_API_KEY,
         "arsId": ars_id_str,
         "resultType": "json",
     }
@@ -510,7 +512,7 @@ async def _lookup_one_station_by_ars(ars_id: str) -> Optional[Dict[str, Any]]:
         return None
 
     params = {
-        "serviceKey": BUS_API_KEY,
+        "ServiceKey": BUS_API_KEY,
         "arsId": ars,
         "resultType": "json",
     }
@@ -563,7 +565,7 @@ async def _fetch_stations_by_name_single(
 ) -> Tuple[Optional[List[Dict[str, Any]]], Optional[str]]:
     """``getStationByName`` 1회 호출. 성공 시 (rows, None), header 오류 시 (None, msg)."""
     params = {
-        "serviceKey": BUS_API_KEY,
+        "ServiceKey": BUS_API_KEY,
         "stSrch": st_srch,
         "resultType": "json",
     }
