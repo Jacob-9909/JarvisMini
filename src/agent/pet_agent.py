@@ -4,8 +4,9 @@
 
 도메인 경로:
 - bus/wellness/navigation/general : 에이전트 → post_process_node
-- lunch      : lunch_agent → lunch_candidates_node (HITL)
-               → lunch_draw_node (추첨 후 즉시 확정) → post_process_node
+- lunch      : lunch_agent → lunch_draw_node (HITL 없이 즉시 추첨)
+               → lunch_restaurant_search_node (Tavily MCP 로 회사 근처 맛집 검색)
+               → post_process_node
 - calendar   : calendar_agent → calendar_reminder_node (HITL / passthrough)
                → calendar_finalize_node → post_process_node
 
@@ -19,7 +20,8 @@ from __future__ import annotations
 from google.adk import Workflow
 
 from src.agent.calendar_hitl import calendar_finalize_node, calendar_reminder_node
-from src.agent.lunch_hitl import lunch_candidates_node, lunch_draw_node
+from src.agent.lunch_hitl import lunch_draw_node
+from src.agent.lunch_restaurant import lunch_restaurant_search_node
 from src.agent.nodes import (
     CURRENT_CHAT_INPUT,
     end_node,
@@ -55,10 +57,10 @@ pet_agent = Workflow(
         (navigation_agent,   post_process_node),
         (general_chat_agent, post_process_node),
 
-        # 점심: 후보 1회 HITL → 추첨 후 즉시 확정(추가 HITL 없음)
-        (lunch_agent,              lunch_candidates_node),
-        (lunch_candidates_node,    lunch_draw_node),
-        (lunch_draw_node,          post_process_node),
+        # 점심: HITL 없이 즉시 추첨 → Tavily MCP 로 회사 근처 맛집 검색
+        (lunch_agent,                  lunch_draw_node),
+        (lunch_draw_node,              lunch_restaurant_search_node),
+        (lunch_restaurant_search_node, post_process_node),
 
         # Calendar: 에이전트(툴 조회) → HITL 노드
         (calendar_agent,           calendar_reminder_node),

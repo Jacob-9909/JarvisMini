@@ -9,10 +9,10 @@
 | 경로 | 엔진 | 용도 |
 |------|------|------|
 | 탭 버튼 (상태/버스/길찾기/점심/일정) | `google.adk.Workflow` (Graph) | 단발 UI 액션 · 빠른 응답 |
-| **대화창 (펫 탭)** | `google.adk.Workflow` (Graph) — `pet_agent` | LLM 라우터 + route별 Sub-agent + 점심/캘린더 **비-LLM HITL** |
+| **대화창 (펫 탭)** | `google.adk.Workflow` (Graph) — `pet_agent` | LLM 라우터 + route별 Sub-agent + 캘린더 **비-LLM HITL** + 점심 **Tavily 맛집 검색** |
 
 두 경로 모두 최종적으로 펫 EXP/스트레스 갱신 로직으로 수렴  
-대화창은 `router_decide_node` → `router_finalize_node` → 도메인 에이전트 → (필요 시) `hitl` → `post_process_node` → `pet_care_node`  
+대화창은 `router_decide_node` → `router_finalize_node` → 도메인 에이전트 → (필요 시) `hitl` / `restaurant_search` → `post_process_node` → `pet_care_node`  
 라우터는 `src/agent/router.py`에 의도가 명확하면 LLM·의도 확인 HITL Pass
 
 ### 펫 채팅 그래프: Sub-agent 와 Node
@@ -24,7 +24,7 @@
 | **Sub-agent** | LLM + `FunctionTool` 등으로 사용자 질문에 라우터가 고른 route 문자열과 `Agent.name` 이 같아야 `pet_agent`의 `_ROUTE_TO_AGENT` 매핑 | `bus_agent`, `lunch_agent`, `calendar_agent`, `navigation_agent`, `wellness_coach`, `general_chat_agent` |
 | **공통 Node** | 입력 정규화·보상 정책·DB 반영·최종 메시지. LLM 없음. | `init_node`, `post_process_node`, `pet_care_node`, `end_node` |
 | **라우터 Node** | 의도 분류·(선택) 의도 확인 HITL·최종 route 확정. | `router_decide_node`, `router_finalize_node` |
-| **도메인 HITL Node** | 점심 후보·캘린더 알림 등 `RequestInput` / `ctx.state` 만 사용 (비-LLM). Sub-agent 출력을 입력으로 받음 | `lunch_hitl.py`, `calendar_hitl.py` |
+| **도메인 Node** | 점심 추첨·캘린더 알림 등 `RequestInput` / `ctx.state` 만 사용 (비-LLM). Sub-agent 출력을 입력으로 받음 | `lunch_hitl.py`, `calendar_hitl.py`, `lunch_restaurant.py` |
 
 - **`post_process_node`** 는 route·HITL 상태만 보고 EXP/stress 숫자를 정한 뒤, 응답 텍스트까지 **`AgentOutput`** 한 덩어리 종합
 - **`pet_care_node`** 는 `AgentOutput`을 받아 펫 상태 갱신
@@ -77,7 +77,7 @@ uv run python -m src.main --mode web --user-id 1
   - `router_finalize_node`는 HITL 재개 입력을 받아 최종 route를 확정 짧은 긍정(예: 네, 응, ok, accept)이면 추정 route를 그대로 쓰고, 아니면 키워드 재시도 후 필요 시 LLM으로 재분류
 - 도메인 분기:
   - `bus_agent` / `wellness_coach` / `navigation_agent` / `general_chat_agent` 는 각 에이전트 실행 후 바로 `post_process_node` (`navigation_agent` 는 카카오맵 웹 길찾기 링크 등).
-  - `lunch_agent` → `lunch_candidates_node`(**후보 1회 HITL**: accept / edit / cancel) → `lunch_draw_node`(추첨) → `post_process_node`. 추첨 직후 **`pending_lunch_status: accepted`** 로 끝
+  - `lunch_agent` → `lunch_draw_node` (HITL 없이 즉시 추첨) → `lunch_restaurant_search_node` (Tavily MCP로 회사 근처 맛집 검색) → `post_process_node`.
   - `calendar_agent` → `calendar_reminder_node`(HITL 또는 패스스루) → `calendar_finalize_node` → `post_process_node`.
 - 공통 종료 체인:
   - `post_process_node` 에서 route별 보상 정책 계산
@@ -95,9 +95,9 @@ flowchart TB
   fork --> lunch[lunch_agent]
   fork --> cal[calendar_agent]
   fork --> other[bus / wellness / navigation / general]
-  lunch --> lc1[lunch_candidates_node<br/>HITL 후보]
-  lc1 --> ld[lunch_draw_node<br/>추첨·즉시 accepted]
-  ld --> pp[post_process_node]
+  lunch --> ld[lunch_draw_node<br/>즉시 추첨]
+  ld --> lrs[lunch_restaurant_search_node<br/>Tavily 검색]
+  lrs --> pp[post_process_node]
   cal --> cr[calendar_reminder_node<br/>HITL or passthrough]
   cr --> cfin[calendar_finalize_node]
   cfin --> pp

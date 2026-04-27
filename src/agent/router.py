@@ -152,58 +152,31 @@ def _extract_json_obj(text: str) -> Optional[dict]:
     return None
 
 
-_genai_client = None
-
-
-def _get_genai_client():
-    global _genai_client
-    if _genai_client is not None:
-        return _genai_client
-    try:
-        from google import genai
-
-        _genai_client = genai.Client()
-    except Exception:
-        logger.exception("failed to init genai client")
-        _genai_client = None
-    return _genai_client
-
-
 async def _llm_json(system: str, user: str, schema_cls: type[BaseModel], key: str) -> Optional[BaseModel]:
-    """genai 로 JSON 한 번 뽑아 ``schema_cls`` 로 검증.
-
-    ``response_mime_type=application/json`` + ``response_schema`` 로 구조 강제.
+    """litellm으로 JSON 한 번 뽑아 ``schema_cls`` 로 검증.
     실패 시 텍스트에서 수동 추출 시도.
     """
-    client = _get_genai_client()
-    if client is None:
-        return None
+    import litellm
     try:
-        from google.genai import types as genai_types
-
-        config = genai_types.GenerateContentConfig(
-            system_instruction=system,
-            response_mime_type="application/json",
-            response_schema=schema_cls,
-            temperature=0,
-        )
-        resp = await client.aio.models.generate_content(
+        resp = await litellm.acompletion(
             model=MODEL,
-            contents=user,
-            config=config,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user}
+            ],
+            response_format={"type": "json_object"},
+            temperature=0,
+            extra_body={"chat_template_kwargs": {"thinking": False}},
         )
+        text = resp.choices[0].message.content or ""
     except Exception:
-        logger.exception("genai generate_content failed")
+        logger.exception("litellm acompletion failed")
         return None
 
-    parsed = getattr(resp, "parsed", None)
-    if isinstance(parsed, schema_cls):
-        return parsed
 
-    text = getattr(resp, "text", None) or ""
     obj = _extract_json_obj(text)
     if obj is None or key not in obj:
-        logger.warning("llm_json no key %r in text=%r parsed=%r", key, text[:200], parsed)
+        logger.warning("llm_json no key %r in text=%r", key, text[:200])
         return None
     try:
         return schema_cls.model_validate(obj)

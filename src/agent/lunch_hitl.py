@@ -94,24 +94,10 @@ async def lunch_candidates_node(ctx, node_input: Any): # 후보 메뉴 제안 �
     )
 
 
-async def lunch_draw_node(ctx, node_input: Any): # 추첨 노드
-    user_resp = _text(node_input)
-    candidates = list(ctx.state.get("lunch_candidates") or _DEFAULT_MENUS)
-
-    if _has(user_resp, _CANCEL_KEYS):
-        yield Event(
-            state={"pending_lunch_status": "cancelled"},
-            output={
-                "response": "점심 추첨 취소.",
-                "lunch_status": "cancelled",
-            },
-        )
-        return
-
-    if "edit" in user_resp.lower() or re.search(r"[,/]", user_resp):
-        parsed = _parse_candidates(re.sub(r"(?i)edit", "", user_resp))
-        if parsed:
-            candidates = parsed
+async def lunch_draw_node(ctx, node_input: Any): # 추첨 노드 (HITL 없이 즉시 추첨)
+    agent_text = _text(node_input)
+    parsed = _parse_candidates(agent_text)
+    candidates = parsed or list(ctx.state.get("lunch_candidates") or _DEFAULT_MENUS)
 
     winner, method = _draw(ctx, candidates, candidates[0] if candidates else "?")
 
@@ -120,6 +106,7 @@ async def lunch_draw_node(ctx, node_input: Any): # 추첨 노드
     yield Event(
         state={
             "lunch_candidates": candidates,
+            "lunch_agent_text": agent_text,
             "lunch_winner": winner,
             "lunch_method": method,
             "pending_lunch_status": "accepted",

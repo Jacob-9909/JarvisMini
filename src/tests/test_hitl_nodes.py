@@ -95,25 +95,8 @@ async def test_lunch_candidates_falls_back_to_defaults():
 
 
 @pytest.mark.asyncio
-async def test_lunch_draw_cancel_short_circuits():
+async def test_lunch_draw_parses_agent_text_and_draws(monkeypatch):
     ctx = _FakeCtx()
-    ctx.state["lunch_candidates"] = ["김밥", "라면"]
-    ctx.state["user_id"] = 1
-
-    events = await _collect(lunch_hitl.lunch_draw_node(ctx, "cancel"))
-    _apply_state_events(ctx, events)
-
-    assert len(events) == 1
-    ev = events[0]
-    assert isinstance(ev, Event)
-    assert ev.output["lunch_status"] == "cancelled"
-    assert ctx.state.get("pending_lunch_status") == "cancelled"
-
-
-@pytest.mark.asyncio
-async def test_lunch_draw_accept_runs_roulette_and_auto_accepts(monkeypatch):
-    ctx = _FakeCtx()
-    ctx.state["lunch_candidates"] = ["김밥", "라면", "떡볶이"]
     ctx.state["user_id"] = 42
 
     def _fake_draw(*, user_id: int, menus: List[str]) -> Dict[str, Any]:
@@ -123,11 +106,13 @@ async def test_lunch_draw_accept_runs_roulette_and_auto_accepts(monkeypatch):
 
     monkeypatch.setattr(lunch_hitl.lunch_roulette, "draw", _fake_draw)
 
-    events = await _collect(lunch_hitl.lunch_draw_node(ctx, "accept"))
+    agent_text = "후보: 김밥 · 라면 · 떡볶이"
+    events = await _collect(lunch_hitl.lunch_draw_node(ctx, agent_text))
     _apply_state_events(ctx, events)
 
     assert len(events) == 1
     assert ctx.state.get("lunch_winner") == "떡볶이"
+    assert ctx.state.get("lunch_candidates") == ["김밥", "라면", "떡볶이"]
     assert ctx.state.get("pending_lunch_status") == "accepted"
     ev = events[0]
     assert isinstance(ev, Event)
@@ -136,7 +121,7 @@ async def test_lunch_draw_accept_runs_roulette_and_auto_accepts(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_lunch_draw_edit_replaces_candidates(monkeypatch):
+async def test_lunch_draw_falls_back_to_state_candidates(monkeypatch):
     ctx = _FakeCtx()
     ctx.state["lunch_candidates"] = ["A", "B"]
     ctx.state["user_id"] = 1
@@ -149,13 +134,10 @@ async def test_lunch_draw_edit_replaces_candidates(monkeypatch):
 
     monkeypatch.setattr(lunch_hitl.lunch_roulette, "draw", _fake_draw)
 
-    events = await _collect(
-        lunch_hitl.lunch_draw_node(ctx, "edit 김치찌개, 라면, 돈까스")
-    )
+    events = await _collect(lunch_hitl.lunch_draw_node(ctx, ""))
     _apply_state_events(ctx, events)
 
-    assert captured["menus"] == ["김치찌개", "라면", "돈까스"]
-    assert ctx.state["lunch_candidates"] == ["김치찌개", "라면", "돈까스"]
+    assert captured["menus"] == ["A", "B"]
 
 
 @pytest.mark.asyncio
