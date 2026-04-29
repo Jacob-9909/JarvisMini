@@ -18,13 +18,22 @@ def _text(node_input: Any) -> str: # 노드 입력을 텍스트로 변환
     if node_input is None:
         return ""
     if isinstance(node_input, dict):
-        return str(node_input.get("response") or node_input.get("result") or "")
-    return str(node_input)
+        # response, result, message 등 다양한 키 대응
+        return str(
+            node_input.get("response")
+            or node_input.get("result")
+            or node_input.get("message")
+            or node_input.get("content")
+            or ""
+        )
+    # GenAI Content/Part 객체 등 문자열 변환 시도
+    return str(node_input).strip()
 
 
 def _has(text: str, keywords: tuple[str, ...]) -> bool: # 텍스트에 키워드가 포함되어 있는지 확인
-    low = (text or "").lower().strip()
-    return any(k in low for k in keywords)
+    # 특수문자 제거 및 소문자 정규화 후 비교
+    clean = re.sub(r"[^\w\s]", "", (text or "").lower()).strip()
+    return any(k in clean for k in keywords) or any(k in (text or "").lower() for k in keywords)
 
 
 def _has_events(text: str) -> bool: # 텍스트에 일정이 포함되어 있는지 확인
@@ -49,7 +58,9 @@ async def calendar_reminder_node(ctx, node_input: Any): # 일정 요약 노드
 
     yield Event(state={"calendar_agent_text": raw})
 
-    yield RequestInput(
+    # RequestInput yield 시 워크플로우가 중단됨.
+    # 사용자가 답장을 보내면 이 지점에서 재개되며, yield 표현식의 결과값이 사용자 응답이 됨.
+    user_response = yield RequestInput(
         message=(
             f"{raw}\n\n"
             "⏰ 가장 가까운 일정 30분 전 알림 받을까요?\n"
@@ -58,6 +69,9 @@ async def calendar_reminder_node(ctx, node_input: Any): # 일정 요약 노드
         ),
         payload={"events_summary": raw[:800]},
     )
+
+    # 재개된 사용자 응답을 명시적으로 output으로 내보내어 finalize_node가 받을 수 있게 함.
+    yield Event(output=user_response)
 
 
 async def calendar_finalize_node(ctx, node_input: Any): # 일정 요약 확정 노드
